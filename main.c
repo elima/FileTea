@@ -6,7 +6,12 @@
 
 #define LISTEN_PORT 8080
 
+#define SOURCE_ID_START_DEPTH 8
+
 static gint exit_status = 0;
+
+static const gchar *instance_id = "1a0";
+
 static GMainLoop *main_loop;
 
 static EvdPeerManager *peer_manager;
@@ -308,12 +313,50 @@ jsonrpc_on_transport_write (EvdJsonrpc  *self,
     }
 }
 
+static gchar *
+generate_source_id (const gchar *instance_id)
+{
+  gchar *uuid;
+  gchar *id;
+  static gint depth = SOURCE_ID_START_DEPTH;
+  gint _depth;
+  gint fails;
+
+  _depth = depth - strlen (instance_id);
+  g_assert (_depth > 0 && _depth <= 40);
+
+  fails = 0;
+
+  uuid = evd_uuid_new ();
+  uuid[_depth] = '\0';
+  while (g_hash_table_lookup (sources_by_id, uuid) != NULL)
+    {
+      g_free (uuid);
+      fails++;
+      if (fails > 2)
+        {
+          depth++;
+          _depth = depth - strlen (instance_id);
+          fails = 0;
+        }
+
+      uuid = evd_uuid_new ();
+      uuid[_depth] = '\0';
+    }
+
+  id = g_strconcat (instance_id, uuid, NULL);
+  g_free (uuid);
+
+  return id;
+}
+
 static FileSource *
 add_file_source (JsonNode *item, EvdPeer *peer)
 {
   gchar *source_id = NULL;
   JsonArray *a;
   JsonNode *node;
+  gchar *id;
   const gchar *name;
   const gchar *type;
   gssize size;
@@ -334,7 +377,9 @@ add_file_source (JsonNode *item, EvdPeer *peer)
   if (name == NULL || type == NULL || size <= 0)
     return NULL;
 
-  source = file_source_new (peer, name, type, size);
+  id = generate_source_id (instance_id);
+  source = file_source_new (peer, id, name, type, size);
+  g_free (id);
 
   g_hash_table_insert (sources_by_id, source->id, source);
 
