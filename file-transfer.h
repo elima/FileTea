@@ -25,6 +25,7 @@ struct _FileTransfer
   gsize transferred;
   GSimpleAsyncResult *result;
   gint ref_count;
+  gboolean download;
 
   guint report_interval;
   time_t report_last_time;
@@ -34,14 +35,14 @@ struct _FileTransfer
 
 FileTransfer * file_transfer_new          (FileSource          *source,
                                            EvdHttpConnection   *conn,
+                                           gboolean             download,
                                            GAsyncReadyCallback  callback,
                                            gpointer             user_data);
 
 FileTransfer * file_transfer_ref          (FileTransfer *self);
 void           file_transfer_unref        (FileTransfer *self);
 
-void           file_transfer_start        (FileTransfer *self,
-                                           gboolean      download);
+void           file_transfer_start        (FileTransfer *self);
 gboolean       file_transfer_finish       (FileTransfer  *self,
                                            GAsyncResult  *result,
                                            GError       **error);

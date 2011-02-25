@@ -14,6 +14,7 @@ static void     file_transfer_complete         (FileTransfer *self);
 FileTransfer *
 file_transfer_new (FileSource          *source,
                    EvdHttpConnection   *target_conn,
+                   gboolean             download,
                    GAsyncReadyCallback  callback,
                    gpointer             user_data)
 {
@@ -27,6 +28,8 @@ file_transfer_new (FileSource          *source,
   self = g_slice_new0 (FileTransfer);
   self->ref_count = 1;
   self->report_interval = 1;
+
+  self->download = download;
 
   self->result = g_simple_async_result_new (NULL,
                                             callback,
@@ -158,7 +161,7 @@ file_transfer_on_target_can_write (EvdConnection *target_conn, gpointer user_dat
 }
 
 void
-file_transfer_start (FileTransfer *self, gboolean download)
+file_transfer_start (FileTransfer *self)
 {
   SoupMessageHeaders *headers;
   GError *error = NULL;
@@ -167,7 +170,7 @@ file_transfer_start (FileTransfer *self, gboolean download)
 
   headers = soup_message_headers_new (SOUP_MESSAGE_HEADERS_RESPONSE);
 
-  if (download)
+  if (self->download)
     {
       gchar *st;
 
