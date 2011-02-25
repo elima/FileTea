@@ -2,13 +2,12 @@
 
 FileSource *
 file_source_new (EvdPeer     *peer,
+                 const gchar *id,
                  const gchar *file_name,
                  const gchar *file_type,
                  gsize        file_size)
 {
   FileSource *self;
-  gchar *st;
-  gchar *uuid;
 
   g_return_val_if_fail (EVD_IS_PEER (peer), NULL);
   g_return_val_if_fail (file_name != NULL, NULL);
@@ -21,18 +20,10 @@ file_source_new (EvdPeer     *peer,
   self->peer = peer;
   g_object_ref (peer);
 
+  self->id = g_strdup (id);
   self->file_name = g_strdup (file_name);
   self->file_type = g_strdup (file_type);
   self->file_size = file_size;
-
-  uuid = evd_uuid_new ();
-  st = g_strdup_printf ("%s%s",
-                        file_name,
-                        uuid);
-  g_free (uuid);
-
-  self->id = g_compute_checksum_for_string (G_CHECKSUM_SHA1, st, -1);
-  g_free (st);
 
   return self;
 }

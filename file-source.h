@@ -14,6 +14,7 @@ typedef struct
 } FileSource;
 
 FileSource * file_source_new  (EvdPeer     *peer,
+                               const gchar *id,
                                const gchar *file_name,
                                const gchar *file_type,
                                gsize        file_size);
