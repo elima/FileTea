@@ -1,0 +1,100 @@
+#shared-files-tab {
+    padding: 10px;
+    padding-top: 20px;
+}
+
+#shared-files-list {
+    padding-top: 10px;
+}
+
+#shared-files-list-empty-notice {
+    text-align: center;
+    border: solid 1px #a6c9e2;
+    border-radius: 3px;
+    -moz-border-radius: 3px;
+}
+
+#shared-files-list-empty-notice .title {
+    font-size: 20px;
+    color: #FF7700;
+}
+
+#shared-files-list-empty-notice .comment {
+    color: #4297d7;
+}
+
+#shared-files-selector {
+    visibility: hidden;
+    position: absolute;
+    with: 1px;
+    height: 1px;
+}
+
+.shared-file-item {
+    margin-top: 2px;
+    padding: 0px;
+    padding-left: 10px;
+    height: 37px;
+    background-color: #FFF;
+    border-radius: 3px;
+    -moz-border-radius: 3px;
+    white-space: nowrap;
+    overflow: hidden;
+    vertical-align: middle;
+    border: solid 1px #FFF;
+}
+
+.shared-file-item:nth-child(odd) {
+    background-color: #eaf5f7;
+}
+
+.shared-file-item:hover {
+    border: solid 1px #4297d7;
+}
+
+.shared-file-thumb {
+    float: left;
+    width: 32px;
+    height: 32px;
+    border-radius: 3px;
+    margin: 2px;
+    margin-right: 5px;
+}
+
+.shared-file-name {
+    position: relative;
+    margin: 2px;
+    font-size: 16px;
+    overflow: hidden;
+    font-weight: bold;
+    display: block;
+}
+
+.shared-file-info {
+    position: relative;
+    display: block;
+    font-size: 11px;
+    top: 0px;
+}
+
+.shared-file-url {
+    position: relative;
+    display: block;
+    left: 45%;
+    width: 45%;
+    top: -30px;
+}
+
+.shared-file-url input {
+    border: solid 1px;
+    font-size: 15px;
+    width: 100%;
+}
+
+.shared-file-del-btn {
+    position: relative;
+    left: 95%;
+    top: -53px;
+    width: 24px;
+    cursor: pointer;
+}
