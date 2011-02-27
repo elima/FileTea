@@ -107,7 +107,7 @@ $ (function () {
 
     fileSourcesView.addEventListener ("source-added",
         function () {
-            $ ("#tabs").tabs('select', 0);
+            $ ("#tabs").tabs('select', "#shared-files-tab");
         });
     fileSourcesView.addEventListener ("source-removed",
         function (ids) {
@@ -250,7 +250,7 @@ function uploadFile (file, url) {
 }
 
 function filesAdded () {
-    var files = $ ("#file-selector").get(0).files;
+    var files = $ ("#shared-files-selector").get(0).files;
     onFilesDropped (files);
 }
 
