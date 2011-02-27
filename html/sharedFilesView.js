@@ -1,4 +1,4 @@
-// FileSourcesView class
+// SharedFilesView class
 
 var SharedFilesView = new Evd.Constructor ();
 SharedFilesView.prototype = new Evd.Object ();
@@ -44,7 +44,7 @@ Evd.Object.extend (SharedFilesView.prototype, {
         if (type.indexOf ("image/") == 0 && size < 1024000)
             this._createThumbnail (file, item.thumbEl);
         else
-            item.thumbEl.src = "mime-type-icon-default.png";
+            item.thumbEl.src = "/mime-type-icon-default.png";
         item.appendChild (item.thumbEl);
 
         item.nameEl = this._newContainer (item, name, "shared-file-name");
@@ -58,7 +58,7 @@ Evd.Object.extend (SharedFilesView.prototype, {
         item.urlEl.title = "Copy this link and send it to share the file";
 
         item.delEl = document.createElement ("img");
-        item.delEl.src = "delete.png";
+        item.delEl.src = "/delete.png";
         item.delEl.className = "shared-file-del-btn";
         item.appendChild (item.delEl);
         item.delEl.title = "Unshare file " + name;
