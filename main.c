@@ -8,6 +8,10 @@
 
 #define SOURCE_ID_START_DEPTH 8
 
+#define PATH_REALM_FILE "file"
+
+#define PATH_ACTION_DOWNLOAD "download"
+
 static gint exit_status = 0;
 
 static const gchar *instance_id = "1a0";
@@ -111,13 +115,18 @@ on_transfer_finished (GObject      *obj,
 
 static void
 setup_new_transfer (FileSource        *source,
-                    EvdHttpConnection *conn)
+                    EvdHttpConnection *conn,
+                    gboolean           download)
 {
   FileTransfer *transfer;
   JsonNode *params;
   JsonArray *arr;
 
-  transfer = file_transfer_new (source, conn, on_transfer_finished, NULL);
+  transfer = file_transfer_new (source,
+                                conn,
+                                download,
+                                on_transfer_finished,
+                                NULL);
 
   params = json_node_new (JSON_NODE_ARRAY);
   arr = json_array_new ();
@@ -139,24 +148,23 @@ setup_new_transfer (FileSource        *source,
   g_hash_table_insert (transfers, transfer->id, transfer);
 }
 
-static void
-web_streamer_on_request (EvdWebService     *web_streamer,
-                         EvdHttpConnection *conn,
-                         EvdHttpRequest    *request,
-                         gpointer           user_data)
+static gboolean
+handle_special_request (EvdWebService       *web_streamer,
+                        EvdHttpConnection   *conn,
+                        EvdHttpRequest      *request,
+                        SoupURI             *uri,
+                        gchar             **tokens)
 {
-  SoupMessageHeaders *headers;
-  GError *error = NULL;
+  const gchar *realm;
+  const gchar *id;
+  const gchar *action;
+  gboolean download;
 
-  gchar **tokens;
-  FileSource *source;
-  SoupURI *uri;
-  gchar *id;
+  realm = tokens[1];
+  id = tokens[2];
+  action = tokens[3];
 
-  uri = evd_http_request_get_uri (request);
-
-  tokens = g_strsplit (uri->path, "/", 16);
-  id = tokens[1];
+  download = g_strcmp0 (action, PATH_ACTION_DOWNLOAD) == 0;
 
   if (g_strcmp0 (evd_http_request_get_method (request), "PUT") == 0)
     {
@@ -176,46 +184,75 @@ web_streamer_on_request (EvdWebService     *web_streamer,
           g_object_unref (throttle);
 
           file_transfer_set_source_conn (transfer, conn);
-          file_transfer_start (transfer, FALSE);
+          file_transfer_start (transfer);
+
+          return TRUE;
         }
     }
   else
     {
       FileSource *source;
 
-      source = g_hash_table_lookup (sources_by_id, tokens[1]);
+      source = g_hash_table_lookup (sources_by_id, id);
       if (source != NULL)
         {
-          if (tokens[2] == NULL)
+          if (action == NULL || strlen (action) == 0)
             {
               gchar *new_path;
 
               g_free (tokens[1]);
               tokens[1] = NULL;
 
+              g_free (tokens[2]);
+              tokens[2] = NULL;
+
               new_path = g_strjoinv ("/", tokens);
               soup_uri_set_path (uri, new_path);
-              soup_uri_set_query (uri, source->id);
               g_free (new_path);
-
-              evd_web_service_add_connection_with_request (EVD_WEB_SERVICE (selector),
-                                                           conn,
-                                                           request,
-                                                           NULL);
             }
           else
             {
-              /* @TODO */
-              setup_new_transfer (source, conn);
+              setup_new_transfer (source, conn, download);
+              return TRUE;
             }
         }
-      else
-        {
-          evd_web_service_add_connection_with_request (EVD_WEB_SERVICE (selector),
-                                                       conn,
-                                                       request,
-                                                       NULL);
-        }
+    }
+
+  return FALSE;
+}
+
+static void
+web_streamer_on_request (EvdWebService     *web_streamer,
+                         EvdHttpConnection *conn,
+                         EvdHttpRequest    *request,
+                         gpointer           user_data)
+{
+  SoupMessageHeaders *headers;
+  GError *error = NULL;
+
+  gchar **tokens;
+  SoupURI *uri;
+  guint tokens_len;
+
+  uri = evd_http_request_get_uri (request);
+
+  tokens = g_strsplit (uri->path, "/", 16);
+  tokens_len = g_strv_length (tokens);
+
+  //  g_debug ("%s: %s", evd_http_request_get_method (request), uri->path);
+
+  if (tokens_len < 3 ||
+      g_strcmp0 (tokens[1], PATH_REALM_FILE) != 0 ||
+      ! handle_special_request (web_streamer,
+                                conn,
+                                request,
+                                uri,
+                                tokens))
+    {
+      evd_web_service_add_connection_with_request (EVD_WEB_SERVICE (selector),
+                                                   conn,
+                                                   request,
+                                                   NULL);
     }
 
   g_strfreev (tokens);
