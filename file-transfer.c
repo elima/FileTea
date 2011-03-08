@@ -187,7 +187,6 @@ file_transfer_start (FileTransfer *self)
                                                     SOUP_STATUS_OK,
                                                     NULL,
                                                     headers,
-                                                    NULL,
                                                     &error))
     {
       g_debug ("error sending transfer headers: %s", error->message);
@@ -230,7 +229,6 @@ file_transfer_on_read (GObject      *obj,
   if (! evd_http_connection_write_content (self->target_conn,
                                            self->buf,
                                            size,
-                                           NULL,
                                            &error))
     {
       g_debug ("ERROR writing to target: %s", error->message);
@@ -277,7 +275,6 @@ file_transfer_on_read (GObject      *obj,
                                          NULL,
                                          0,
                                          TRUE,
-                                         NULL,
                                          &error))
         {
           g_debug ("ERROR sending response to source: %s", error->message);
