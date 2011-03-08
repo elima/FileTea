@@ -312,44 +312,6 @@ on_peer_closed (EvdPeerManager *self,
   g_debug ("Closed peer %s", evd_peer_get_id (peer));
 }
 
-static void
-transport_on_receive (EvdTransport *transport,
-                      EvdPeer      *peer,
-                      gpointer      user_data)
-{
-  GList *all_sources;
-  GList *node;
-  EvdJsonrpc *jsonrpc = EVD_JSONRPC (user_data);
-  const gchar *data;
-  GError *error = NULL;
-  gsize size;
-
-  data = evd_transport_receive (transport, peer, &size);
-
-  if (! evd_jsonrpc_transport_read (jsonrpc, data, size, peer, &error))
-    {
-      g_debug ("Error in JSON-RPC protocol: %s", error->message);
-      g_error_free (error);
-    }
-}
-
-static gboolean
-jsonrpc_on_transport_write (EvdJsonrpc  *self,
-                            const gchar *buffer,
-                            gsize        size,
-                            gpointer     context,
-                            gpointer     user_data)
-{
-  EvdPeer *peer = EVD_PEER (context);
-  GError *error = NULL;
-
-  if (! evd_peer_send_text (peer, buffer, &error))
-    {
-      g_debug ("Error sending msg to peer: %s", error->message);
-      g_error_free (error);
-    }
-}
-
 static gchar *
 generate_source_id (const gchar *instance_id)
 {
@@ -595,22 +557,15 @@ main (gint argc, gchar *argv[])
                             NULL);
   g_free (addr);
 
+  /* web transport */
+  transport = evd_web_transport_new ();
+
   /* JSON-RPC */
   jsonrpc = evd_jsonrpc_new ();
   evd_jsonrpc_set_method_call_callback (jsonrpc,
                                         jsonrpc_on_method_called,
                                         NULL);
-  evd_jsonrpc_transport_set_write_callback (jsonrpc,
-                                            jsonrpc_on_transport_write,
-                                            NULL);
-
-  /* web transport */
-  transport = evd_web_transport_new ();
-
-  g_signal_connect (transport,
-                    "receive",
-                    G_CALLBACK (transport_on_receive),
-                    jsonrpc);
+  evd_jsonrpc_use_transport (jsonrpc, EVD_TRANSPORT (transport));
 
   /* peer manager */
   peer_manager = evd_peer_manager_get_default ();
@@ -648,8 +603,8 @@ main (gint argc, gchar *argv[])
   g_object_unref (selector);
   g_object_unref (web_dir);
   g_object_unref (peer_manager);
-  g_object_unref (transport);
   g_object_unref (jsonrpc);
+  g_object_unref (transport);
   g_object_unref (web_streamer);
 
   g_hash_table_unref (transfers);
