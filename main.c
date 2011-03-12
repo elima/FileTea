@@ -16,7 +16,7 @@ static gint exit_status = 0;
 
 static const gchar *instance_id = "1a0";
 
-static GMainLoop *main_loop;
+static EvdDaemon *evd_daemon;
 
 static EvdPeerManager *peer_manager;
 static EvdWebSelector *selector;
@@ -25,20 +25,6 @@ static EvdJsonrpc *jsonrpc;
 static GHashTable *sources_by_id;
 static GHashTable *sources_by_peer;
 static GHashTable *transfers;
-
-static void
-quit (gint _exit_status)
-{
-  g_main_loop_quit (main_loop);
-  exit_status = _exit_status;
-}
-
-static void
-on_user_interrupt (gint sig)
-{
-  signal (SIGINT, NULL);
-  quit (-1);
-}
 
 static void
 web_selector_on_listen (GObject      *service,
@@ -55,7 +41,8 @@ web_selector_on_listen (GObject      *service,
     {
       g_debug ("%s", error->message);
       g_error_free (error);
-      quit (-1);
+
+      evd_daemon_quit (evd_daemon);
     }
 }
 
@@ -525,6 +512,9 @@ main (gint argc, gchar *argv[])
   g_type_init ();
   evd_tls_init (NULL);
 
+  /* main daemon */
+  evd_daemon = evd_daemon_get_default (&argc, &argv);
+
   /* hash tables for indexing file sources */
   sources_by_id = g_hash_table_new_full (g_str_hash,
                                          g_str_equal,
@@ -592,14 +582,9 @@ main (gint argc, gchar *argv[])
   cred = evd_service_get_tls_credentials (EVD_SERVICE (selector));
 
   /* start the show */
-  main_loop = g_main_loop_new (NULL, FALSE);
-
-  signal (SIGINT, on_user_interrupt);
-  g_main_loop_run (main_loop);
+  evd_daemon_run (evd_daemon);
 
   /* free stuff */
-  g_main_loop_unref (main_loop);
-
   g_object_unref (selector);
   g_object_unref (web_dir);
   g_object_unref (peer_manager);
@@ -610,6 +595,8 @@ main (gint argc, gchar *argv[])
   g_hash_table_unref (transfers);
   g_hash_table_unref (sources_by_peer);
   g_hash_table_unref (sources_by_id);
+
+  g_object_unref (evd_daemon);
 
   evd_tls_deinit ();
 
