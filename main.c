@@ -550,11 +550,11 @@ main (gint argc, gchar *argv[])
                     NULL);
 
   addr = g_strdup_printf ("0.0.0.0:%d", LISTEN_PORT);
-  evd_service_listen_async (EVD_SERVICE (web_streamer),
-                            addr,
-                            NULL,
-                            web_selector_on_listen,
-                            NULL);
+  evd_service_listen (EVD_SERVICE (web_streamer),
+                      addr,
+                      NULL,
+                      web_selector_on_listen,
+                      NULL);
   g_free (addr);
 
   /* web transport */
