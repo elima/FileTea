@@ -413,9 +413,7 @@ remove_file_sources (JsonNode *ids, gboolean abort_transfers)
 
           sources_of_peer = g_hash_table_lookup (sources_by_peer, source->peer);
           if (sources_of_peer != NULL)
-            {
-              g_hash_table_remove (sources_of_peer, source->id);
-            }
+            g_hash_table_remove (sources_of_peer, source->id);
         }
     }
 }
@@ -433,14 +431,14 @@ jsonrpc_on_method_called (EvdJsonrpc  *jsonrpc,
   JsonArray *a;
   gint i;
   JsonNode *item;
+  JsonNode *result = NULL;
+  JsonArray *result_arr;
 
   a = json_node_get_array (params);
 
   if (g_strcmp0 (method_name, "addFileSources") == 0)
     {
       FileSource *source;
-      JsonNode *result;
-      JsonArray *result_arr;
 
       result = json_node_new (JSON_NODE_ARRAY);
       result_arr = json_array_new ();
@@ -456,20 +454,6 @@ jsonrpc_on_method_called (EvdJsonrpc  *jsonrpc,
           else
             json_array_add_null_element (result_arr);
         }
-
-      /* respond JSON-RPC method call */
-      if (! evd_jsonrpc_respond (jsonrpc,
-                                 invocation_id,
-                                 result,
-                                 peer,
-                                 &error))
-        {
-          g_debug ("error responding JSON-RPC: %s", error->message);
-          g_error_free (error);
-        }
-
-      json_node_free (result);
-      json_array_unref (result_arr);
     }
   else if (g_strcmp0 (method_name, "removeFileSources") == 0)
     {
@@ -482,20 +466,56 @@ jsonrpc_on_method_called (EvdJsonrpc  *jsonrpc,
       item = json_array_get_element (a, 1);
 
       remove_file_sources (item, abort_transfers);
+    }
+  else if (g_strcmp0 (method_name, "getFileSourceInfo") == 0)
+    {
+      const gchar *id;
+      FileSource *source;
 
+      id = json_array_get_string_element (a, 0);
+      if (id != NULL && (source = g_hash_table_lookup (sources_by_id, id)) != NULL)
+        {
+          result = json_node_new (JSON_NODE_ARRAY);
+          result_arr = json_array_new ();
+          json_node_set_array (result, result_arr);
+
+          json_array_add_string_element (result_arr, source->file_name);
+          json_array_add_string_element (result_arr, source->file_type);
+          json_array_add_int_element (result_arr, source->file_size);
+        }
+      else
+        {
+          /* @TODO: respond error, file not found */
+        }
+    }
+  else
+    {
+      /* @TODO: error, method not handled */
+      g_debug ("ERROR: unhandled method: %s", method_name);
+    }
+
+  if (error == NULL)
+    {
       if (! evd_jsonrpc_respond (jsonrpc,
                                  invocation_id,
-                                 NULL,
+                                 result,
                                  peer,
                                  &error))
         {
           g_debug ("error responding JSON-RPC: %s", error->message);
           g_error_free (error);
         }
+
+      if (result != NULL)
+        {
+          json_node_free (result);
+          json_array_unref (result_arr);
+        }
     }
   else
     {
-      g_debug ("ERROR: unhandled method: %s", method_name);
+      /* @TODO: respond with error */
+      g_error_free (error);
     }
 }
 
