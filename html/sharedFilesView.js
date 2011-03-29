@@ -9,7 +9,7 @@ Evd.Object.extend (SharedFilesView.prototype, {
         this._parentElement = args.parentElement;
         this._items = {};
         this._itemCount = 0;
-        this._emptyNoticeElement = this._parentElement.childNodes.item (0);
+        this._emptyNoticeElement = document.getElementById ("shared-files-list-empty-notice");
     },
 
     _newContainer: function (parent, inner, className) {
@@ -91,4 +91,9 @@ Evd.Object.extend (SharedFilesView.prototype, {
                 this._parentElement.appendChild (this._emptyNoticeElement);
         }
     }
+
+});
+
+define (function () {
+    return SharedFilesView;
 });

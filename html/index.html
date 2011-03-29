@@ -52,9 +52,13 @@
 
     #content {
         float: left;
+        display: none;
     }
 
   </style>
+
+  <!-- require.js -->
+  <script type="text/javascript" src="/require.js"></script>
 
   <!-- JQuery UI -->
   <link type="text/css" href="/jquery-ui/css/start/jquery-ui-1.8.9.custom.css" rel="Stylesheet" />
@@ -63,17 +67,14 @@
 
   <!-- EventDance -->
   <script type="text/javascript" src="/transport/evdWebTransport.js"></script>
-  <script type="text/javascript" src="/transport/evdJsonrpc.js"></script>
 
   <!-- FileTea -->
-  <script type="text/javascript" src="/fileTea.js"></script>
+<!--  <script type="text/javascript" src="/fileTea.js"></script> -->
 
   <script type="text/javascript">
 
-var transport = null;
-var peer = null;
-var lazyFiles = [];
 var jsonRpc = null;
+var lazyFiles = [];
 
 var fileSources = {};
 var fileSourcesView;
@@ -84,46 +85,84 @@ function reLayout () {
     $ ("#content").css ("width", (document.documentElement.clientWidth - 330) + "px");
 }
 
-function getUrlRealm () {
-    var tokens = window.location.toString().match(/\/\/[^\/]+\/(.*)(\/[^\/]+)+/);
-    if (tokens && tokens.length > 0)
-        return tokens[1];
-    else
-        return null;
-}
-
 $ (function () {
-    $ ("#tabs").tabs ();
+    var $tabs = $ ("#tabs");
+    $tabs.tabs ({
+        tabTemplate: "<li><a href='#{href}'>#{label}</a><span class='ui-icon ui-icon-close'>Remove Tab</span></li>"
+    });
+    $ ("#tabs span.ui-icon-close").live ("click",
+        function () {
+            var index = $ ("li", $tabs).index ($ (this).parent ());
+            $tabs.tabs ("remove", index);
+        });
+
     $ ("#share-files-btn").button ();
 
     window.onresize = function (e) {
         reLayout ();
     };
-
     reLayout ();
-    setupFileDropZone (document, onFilesDropped);
 
-    fileSourcesView = new SharedFilesView ({
-        parentElement: $ ("#shared-files-list").get(0)
+    require (["/sharedFilesView.js"], function (SharedFilesView) {
+        fileSourcesView = new SharedFilesView ({
+            parentElement: $ ("#shared-files-list").get(0)
+        });
+
+        fileSourcesView.addEventListener ("source-added",
+            function () {
+                $ ("#tabs").tabs('select', "#shared-files-tab");
+            });
+        fileSourcesView.addEventListener ("source-removed",
+            function (ids) {
+                jsonRpc.rpc.callMethod ("removeFileSources", [false, ids],
+                    function (result, error) {
+                        if (error)
+                            alert ("ERROR: " + error);
+                    }, jsonRpc.peer);
+            });
     });
 
-    fileSourcesView.addEventListener ("source-added",
-        function () {
-            $ ("#tabs").tabs('select', "#shared-files-tab");
-        });
-    fileSourcesView.addEventListener ("source-removed",
-        function (ids) {
-            jsonRpc.callMethod ("removeFileSources", [false, ids],
+    setupFileDropZone (document, onFilesDropped);
+
+/*
+    var fragId = new FragidNavigator ();
+    fragId.addEventListener ("change", function (oldFrag, newFrag) {
+        window.scroll (0, 0);
+    });
+*/
+
+    var fileSourceId = isTargetDownload ();
+    if (fileSourceId) {
+        var params = [fileSourceId];
+
+        setupJsonrpc (function (jsonRpc) {
+            jsonRpc.rpc.callMethod ("getFileSourceInfo", params,
                 function (result, error) {
-                    if (error)
-                        alert ("ERROR: " + error);
-                });
+                    if (error == null) {
+                        $tabs.tabs ("add", "#download", "Download", 0);
+                        $tabs.tabs ("select", "#download");
+                    }
+                   else {
+                       alert ("ERROR: " + error);
+                   }
+                }, jsonRpc.peer);
         });
+    }
+
+    $ ("#content").get (0).style.display = "block";
 });
 
+function isTargetDownload () {
+    var tokens = window.location.pathname.toString ().split ("/");
+    if (tokens && tokens.length > 2 && tokens[1] == "file" && tokens[2])
+        return tokens[2].toString ();
+    else
+        return null;
+}
+
 function stop () {
-    if (peer)
-        peer.close ();
+    if (jsonRpc)
+        jsonRpc.close ();
 }
 
 function setupFileDropZone (element, callback) {
@@ -154,46 +193,36 @@ function setupFileDropZone (element, callback) {
     }
 }
 
-function setupTransport () {
-    transport = new Evd.LongPolling ({url: "/transport"});
-    transport.addEventListener ("new-peer", peerOnNew);
-    transport.addEventListener ("receive", peerOnReceive);
-    transport.open ();
-}
+function setupJsonrpc (callback) {
+    require (["/jsonRpc.js"], function (jsonRpc) {
+        jsonRpc.addEventListener ("connected",
+            function () {
+                window.jsonRpc = this;
 
-function peerOnNew (_peer) {
-    peer = _peer;
-    jsonRpc = new Evd.Jsonrpc ({
-        transportWriteCb: function (jsonRpc, data) {
-            peer.sendText (data);
-        },
-        methodCallCb: function (methodName, params, invocationId) {
-            if (methodName == "fileTransferNew") {
-                if (newFileTransfer (params[0], params[1]))
-                    jsonRpc.respond (invocationId, []);
-                else
-                    jsonrpc.respondError (invocationId, "Unknown file source");
-            }
-        }
+                window.jsonRpc.rpc.registerMethod ("fileTransferNew",
+                    function (jsonRpc, params, invocationId, context) {
+                        if (newFileTransfer (params[0], params[1]))
+                            jsonRpc.respond (invocationId, [], context);
+                        else
+                            jsonrpc.respondError (invocationId,
+                                                  "Unknown file source",
+                                                  context);
+                    });
+
+                if (callback)
+                    callback (this);
+            });
     });
-
-    while (lazyFiles.length > 0)
-        onNewFileSources (lazyFiles.shift ());
-}
-
-function peerOnReceive (peer) {
-    var data = peer.receiveText ();
-
-    if (jsonRpc != null)
-        jsonRpc.transportRead (data);
 }
 
 function onFilesDropped (files) {
     if (jsonRpc == null) {
-        lazyFiles.push (files);
+        setupJsonrpc (function (jsonRpc) {
+            while (lazyFiles.length > 0)
+                onNewFileSources (lazyFiles.shift ());
+        });
 
-        if (transport == null)
-            setupTransport ();
+        lazyFiles.push (files);
     }
     else
         onNewFileSources (files);
@@ -206,7 +235,7 @@ function onNewFileSources (files) {
         params.push ([file.name, file.type, file.size]);
     }
 
-    jsonRpc.callMethod ("addFileSources", params,
+    jsonRpc.rpc.callMethod ("addFileSources", params,
       function (result, error) {
           if (error == null) {
               addFileSources (files, result);
@@ -214,7 +243,7 @@ function onNewFileSources (files) {
           else {
               alert ("ERROR: " + error);
           }
-      });
+      }, jsonRpc.peer);
 }
 
 function addFileSources (files, ids) {
@@ -226,7 +255,7 @@ function addFileSources (files, ids) {
             fileSources[id] = file;
 
             var a = document.createElement ("A");
-            a.href = "/file/" + id + "/download";
+            a.href = "/file/" + id;
 
             fileSourcesView.add (id, file, a.href + "");
         }
@@ -277,13 +306,12 @@ function filesAdded () {
 
     <div id="shared-files-tab">
       <link type="text/css" href="/shared-files-view.css" rel="Stylesheet" />
-      <script type="text/javascript" src="/sharedFilesView.js"></script>
-
       <input type="file" multiple="true" id="shared-files-selector" onchange="filesAdded()"/>
       <button id="share-files-btn" onclick="$ ('#shared-files-selector').get(0).click()">Add files</button>
-      <div id="shared-files-list"><div id="shared-files-list-empty-notice">
+      <div id="shared-files-list">
+        <div id="shared-files-list-empty-notice">
           <p class="title">No files shared!</p>
-          <p class="comment">To share files use the 'Add files' button above or just drop them into the page</p>
+          <p class="comment">To share files use the 'Add files' button above or just drag-and-drop them into the page</p>
         </div>
       </div>
     </div>
@@ -308,6 +336,8 @@ function filesAdded () {
     <span>
       Powered by <a target="filetea_ext" href="http://blogs.free-social.net/elima/2010/10/14/eventdance-a-peer-to-peer-inter-process-communication-library/">EventDance</a>
     </span>
+    -
+    <a href="#terms">Terms</a>
     <p>
       <a target="filetea_ext" href="http://en.wikipedia.org/wiki/HTML5"><img border="0" src="/html5_logo_32.png"/></a>
     </p>

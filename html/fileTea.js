@@ -53,4 +53,3 @@ Evd.Object.extend (FragidNavigator.prototype, {
         window.location = "#" + fragId;
     }
 });
-
