@@ -12,27 +12,15 @@
         background-repeat: repeat-x;
     }
 
-    #ads-box {
-        float: right;
-        border: dashed 2px #4297d7;
-        width: 260px;
-        height: 300px;
-        text-align: center;
-        padding-top: 300px;
-        font-size: 20px;
-    }
-
     #header {
         height: 100px;
     }
 
     #footer {
-        margin-top: 20px;
-        float: left;
+        margin-top: 40px;
         height: 40px;
         text-align: center;
-        padding: 20px;
-        width: 90%;
+        width: 100%;
         font-size: 90%;
     }
 
@@ -51,8 +39,8 @@
     }
 
     #content {
-        float: left;
         display: none;
+        width: 100%;
     }
 
   </style>
@@ -81,10 +69,6 @@ var fileSourcesView;
 
 window.addEventListener ("unload", stop, false);
 
-function reLayout () {
-    $ ("#content").css ("width", (document.documentElement.clientWidth - 330) + "px");
-}
-
 $ (function () {
     var $tabs = $ ("#tabs");
     $tabs.tabs ({
@@ -97,11 +81,6 @@ $ (function () {
         });
 
     $ ("#share-files-btn").button ();
-
-    window.onresize = function (e) {
-        reLayout ();
-    };
-    reLayout ();
 
     require (["/sharedFilesView.js"], function (SharedFilesView) {
         fileSourcesView = new SharedFilesView ({
@@ -327,8 +306,6 @@ function filesAdded () {
   </div>
 
   </div>
-
-  <div id="ads-box">advertise here</div>
 
   <div id="footer">
     <span>Copyright &copy; 2011</span>
