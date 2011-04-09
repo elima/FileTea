@@ -20,6 +20,7 @@ static EvdDaemon *evd_daemon;
 
 static EvdPeerManager *peer_manager;
 static EvdWebSelector *selector;
+static EvdWebTransport *transport;
 static EvdJsonrpc *jsonrpc;
 
 static GHashTable *sources_by_id;
@@ -51,7 +52,6 @@ on_new_transfer_response (GObject      *obj,
                           GAsyncResult *res,
                           gpointer      user_data)
 {
-  FileTransfer *transfer = user_data;
   JsonNode *error_json;
   JsonNode *result_json;
   GError *error = NULL;
@@ -148,8 +148,8 @@ handle_special_request (EvdWebService       *web_streamer,
   gboolean download;
 
   realm = tokens[1];
-  id = tokens[2];
-  action = tokens[3];
+  id = tokens[1];
+  action = tokens[2];
 
   download = g_strcmp0 (action, PATH_ACTION_DOWNLOAD) == 0;
 
@@ -183,6 +183,7 @@ handle_special_request (EvdWebService       *web_streamer,
       source = g_hash_table_lookup (sources_by_id, id);
       if (source != NULL)
         {
+          /*
           if (action == NULL || strlen (action) == 0)
             {
               gchar *new_path;
@@ -198,8 +199,9 @@ handle_special_request (EvdWebService       *web_streamer,
               g_free (new_path);
             }
           else
+          */
             {
-              setup_new_transfer (source, conn, download);
+              setup_new_transfer (source, conn, /*download*/ TRUE);
               return TRUE;
             }
         }
@@ -214,9 +216,6 @@ web_streamer_on_request (EvdWebService     *web_streamer,
                          EvdHttpRequest    *request,
                          gpointer           user_data)
 {
-  SoupMessageHeaders *headers;
-  GError *error = NULL;
-
   gchar **tokens;
   SoupURI *uri;
   guint tokens_len;
@@ -226,7 +225,50 @@ web_streamer_on_request (EvdWebService     *web_streamer,
   tokens = g_strsplit (uri->path, "/", 16);
   tokens_len = g_strv_length (tokens);
 
-  //  g_debug ("%s: %s", evd_http_request_get_method (request), uri->path);
+  if (tokens_len > 1 && g_strcmp0 (tokens[1], "transport") == 0)
+    {
+      evd_web_service_add_connection_with_request (EVD_WEB_SERVICE (transport),
+                                                   conn,
+                                                   request,
+                                                   NULL);
+    }
+  else if (tokens_len == 2 &&
+           handle_special_request (web_streamer, conn, request, uri, tokens))
+    {
+      /* @TODO: possibly, a request from a transfer endpoint */
+      g_debug ("transfer request");
+    }
+  else if (tokens_len == 2 &&
+           g_strcmp0 (tokens[1], "default") != 0 &&
+           g_strcmp0 (tokens[1], "common") != 0)
+    {
+      gchar *new_path;
+      GError *error = NULL;
+
+      /* @TODO: detect type of user-agent (mobile vs. desktop, and locale),
+         then redirect to correponding html root. By now, only default. */
+
+      new_path = g_strdup_printf ("/default%s", uri->path);
+
+      /* redirect */
+      if (! evd_http_connection_redirect (conn, new_path, FALSE, &error))
+        {
+          g_debug ("ERROR sending response to source: %s", error->message);
+          g_error_free (error);
+        }
+
+      g_free (new_path);
+    }
+  else
+    {
+      evd_web_service_add_connection_with_request (EVD_WEB_SERVICE (selector),
+                                                   conn,
+                                                   request,
+                                                   NULL);
+    }
+
+  /*
+  g_debug ("%s: %s", evd_http_request_get_method (request), uri->path);
 
   if (tokens_len < 3 ||
       g_strcmp0 (tokens[1], PATH_REALM_FILE) != 0 ||
@@ -241,6 +283,7 @@ web_streamer_on_request (EvdWebService     *web_streamer,
                                                    request,
                                                    NULL);
     }
+  */
 
   g_strfreev (tokens);
 }
@@ -339,7 +382,6 @@ generate_source_id (const gchar *instance_id)
 static FileSource *
 add_file_source (JsonNode *item, EvdPeer *peer)
 {
-  gchar *source_id = NULL;
   JsonArray *a;
   JsonNode *node;
   gchar *id;
@@ -432,7 +474,7 @@ jsonrpc_on_method_called (EvdJsonrpc  *jsonrpc,
   gint i;
   JsonNode *item;
   JsonNode *result = NULL;
-  JsonArray *result_arr;
+  JsonArray *result_arr = NULL;
 
   a = json_node_get_array (params);
 
@@ -458,7 +500,6 @@ jsonrpc_on_method_called (EvdJsonrpc  *jsonrpc,
   else if (g_strcmp0 (method_name, "removeFileSources") == 0)
     {
       gboolean abort_transfers;
-      JsonArray *ids;
 
       item = json_array_get_element (a, 0);
       abort_transfers = json_node_get_boolean (item);
@@ -522,11 +563,8 @@ jsonrpc_on_method_called (EvdJsonrpc  *jsonrpc,
 gint
 main (gint argc, gchar *argv[])
 {
-  EvdSocket *stream_listener;
-  EvdWebTransport *transport;
   EvdWebDir *web_dir;
   EvdWebService *web_streamer;
-  EvdTlsCredentials *cred;
   gchar *addr;
 
   g_type_init ();
@@ -568,7 +606,7 @@ main (gint argc, gchar *argv[])
   g_free (addr);
 
   /* web transport */
-  transport = evd_web_transport_new ();
+  transport = evd_web_transport_new (NULL);
 
   /* JSON-RPC */
   jsonrpc = evd_jsonrpc_new ();
@@ -590,16 +628,13 @@ main (gint argc, gchar *argv[])
 
   /* web dir */
   web_dir = evd_web_dir_new ();
-  evd_web_dir_set_root (web_dir, "./html");
+  evd_web_dir_set_root (web_dir, HTML_DATA_DIR);
 
   /* web selector */
   selector = evd_web_selector_new ();
 
   evd_web_selector_set_default_service (selector, EVD_SERVICE (web_dir));
   evd_web_transport_set_selector (transport, selector);
-
-  /*  evd_service_set_tls_autostart (EVD_SERVICE (selector), TRUE);*/
-  cred = evd_service_get_tls_credentials (EVD_SERVICE (selector));
 
   /* start the show */
   evd_daemon_run (evd_daemon);

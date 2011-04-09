@@ -47,4 +47,7 @@ gboolean       file_transfer_finish       (FileTransfer  *self,
                                            GAsyncResult  *result,
                                            GError       **error);
 
+void           file_transfer_set_source_conn (FileTransfer      *self,
+                                              EvdHttpConnection *conn);
+
 #endif

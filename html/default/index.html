@@ -8,7 +8,7 @@
         margin: 20px;
         color: #4297d7;
         font-family: Sans;
-        background-image: url(/gradient-top.png);
+        background-image: url(../common/gradient-top.png);
         background-repeat: repeat-x;
     }
 
@@ -46,12 +46,12 @@
   </style>
 
   <!-- require.js -->
-  <script type="text/javascript" src="/require.js"></script>
+  <script type="text/javascript" src="../common/require.js"></script>
 
   <!-- JQuery UI -->
-  <link type="text/css" href="/jquery-ui/css/start/jquery-ui-1.8.9.custom.css" rel="Stylesheet" />
-  <script type="text/javascript" src="/jquery-ui/js/jquery-1.4.4.min.js"></script>
-  <script type="text/javascript" src="/jquery-ui/js/jquery-ui-1.8.9.custom.min.js"></script>
+  <link type="text/css" href="jquery-ui/css/start/jquery-ui-1.8.9.custom.css" rel="Stylesheet" />
+  <script type="text/javascript" src="../common/jquery-1.4.4.min.js"></script>
+  <script type="text/javascript" src="jquery-ui/js/jquery-ui-1.8.9.custom.min.js"></script>
 
   <!-- EventDance -->
   <script type="text/javascript" src="/transport/evdWebTransport.js"></script>
@@ -128,7 +128,9 @@ $ (function () {
         });
     }
 
-    $ ("#content").get (0).style.display = "block";
+    setTimeout (function () {
+        $ ("#content").get (0).style.display = "block";
+    }, 10);
 });
 
 function isTargetDownload () {
@@ -173,7 +175,7 @@ function setupFileDropZone (element, callback) {
 }
 
 function setupJsonrpc (callback) {
-    require (["/jsonRpc.js"], function (jsonRpc) {
+    require (["../common/jsonRpc.js"], function (jsonRpc) {
         jsonRpc.addEventListener ("connected",
             function () {
                 window.jsonRpc = this;
@@ -234,7 +236,7 @@ function addFileSources (files, ids) {
             fileSources[id] = file;
 
             var a = document.createElement ("A");
-            a.href = "/file/" + id;
+            a.href = "/" + id;
 
             fileSourcesView.add (id, file, a.href + "");
         }
@@ -245,7 +247,7 @@ function newFileTransfer (sourceId, transferId) {
       return false;
 
     var file = fileSources[sourceId];
-    uploadFile (file, "/file/" + transferId);
+    uploadFile (file, "/" + transferId);
 
     return true;
 }
@@ -316,7 +318,7 @@ function filesAdded () {
     -
     <a href="#terms">Terms</a>
     <p>
-      <a target="filetea_ext" href="http://en.wikipedia.org/wiki/HTML5"><img border="0" src="/html5_logo_32.png"/></a>
+      <a target="filetea_ext" href="http://en.wikipedia.org/wiki/HTML5"><img border="0" src="../common/html5_logo_32.png"/></a>
     </p>
   </div>
 
