@@ -108,12 +108,19 @@ setup_new_transfer (FileSource        *source,
   FileTransfer *transfer;
   JsonNode *params;
   JsonArray *arr;
+  gchar *uuid;
+  gchar *transfer_id;
 
-  transfer = file_transfer_new (source,
+  uuid = evd_uuid_new ();
+  transfer_id = g_strconcat (instance_id, uuid, NULL);
+  transfer = file_transfer_new (transfer_id,
+                                source,
                                 conn,
                                 download,
                                 on_transfer_finished,
                                 NULL);
+  g_free (transfer_id);
+  g_free (uuid);
 
   params = json_node_new (JSON_NODE_ARRAY);
   arr = json_array_new ();

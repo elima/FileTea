@@ -12,15 +12,14 @@ static void     file_transfer_flush_target     (FileTransfer *self);
 static void     file_transfer_complete         (FileTransfer *self);
 
 FileTransfer *
-file_transfer_new (FileSource          *source,
+file_transfer_new (const gchar         *id,
+                   FileSource          *source,
                    EvdHttpConnection   *target_conn,
                    gboolean             download,
                    GAsyncReadyCallback  callback,
                    gpointer             user_data)
 {
   FileTransfer *self;
-  gchar *st;
-  gchar *uuid;
 
   g_return_val_if_fail (EVD_IS_HTTP_CONNECTION (target_conn), NULL);
   g_return_val_if_fail (source != NULL, NULL);
@@ -45,14 +44,7 @@ file_transfer_new (FileSource          *source,
 
   self->source = file_source_ref (source);
 
-  uuid = evd_uuid_new ();
-  st = g_strdup_printf ("%s%s",
-                        source->file_name,
-                        uuid);
-  g_free (uuid);
-
-  self->id = g_compute_checksum_for_string (G_CHECKSUM_SHA1, st, -1);
-  g_free (st);
+  self->id = g_strdup (id);
 
   return self;
 }

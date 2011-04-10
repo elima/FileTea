@@ -33,7 +33,8 @@ struct _FileTransfer
   gpointer report_cb_user_data;
 };
 
-FileTransfer * file_transfer_new          (FileSource          *source,
+FileTransfer * file_transfer_new          (const gchar         *id,
+                                           FileSource          *source,
                                            EvdHttpConnection   *conn,
                                            gboolean             download,
                                            GAsyncReadyCallback  callback,
