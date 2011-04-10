@@ -82,7 +82,7 @@ $ (function () {
 
     $ ("#share-files-btn").button ();
 
-    require (["/sharedFilesView.js"], function (SharedFilesView) {
+    require (["sharedFilesView.js"], function (SharedFilesView) {
         fileSourcesView = new SharedFilesView ({
             parentElement: $ ("#shared-files-list").get(0)
         });
@@ -286,7 +286,7 @@ function filesAdded () {
     </ul>
 
     <div id="shared-files-tab">
-      <link type="text/css" href="/shared-files-view.css" rel="Stylesheet" />
+      <link type="text/css" href="shared-files-view.css" rel="Stylesheet" />
       <input type="file" multiple="true" id="shared-files-selector" onchange="filesAdded()"/>
       <button id="share-files-btn" onclick="$ ('#shared-files-selector').get(0).click()">Add files</button>
       <div id="shared-files-list">
