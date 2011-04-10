@@ -607,6 +607,7 @@ main (gint argc, gchar *argv[])
 
   /* web transport */
   transport = evd_web_transport_new (NULL);
+  evd_web_transport_set_enable_websocket (transport, FALSE);
 
   /* JSON-RPC */
   jsonrpc = evd_jsonrpc_new ();
