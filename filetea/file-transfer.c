@@ -1,3 +1,25 @@
+/*
+ * file-transfer.c
+ *
+ * FileTea, low-friction file sharing <http://filetea.net>
+ *
+ * Copyright (C) 2011, Igalia S.L.
+ *
+ * Authors:
+ *   Eduardo Lima Mitev <elima@igalia.com>
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Affero General Public License
+ * version 3, or (at your option) any later version as published by
+ * the Free Software Foundation.
+ *
+ * This library is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ * Affero General Public License at http://www.gnu.org/licenses/agpl.html
+ * for more details.
+ */
+
 #include "file-transfer.h"
 
 #define BLOCK_SIZE 0x0FFF
