@@ -34,8 +34,6 @@
 
 #define PATH_ACTION_DOWNLOAD "download"
 
-static gint exit_status = 0;
-
 static const gchar *instance_id = "1a0";
 
 static EvdDaemon *evd_daemon;
@@ -65,7 +63,7 @@ web_selector_on_listen (GObject      *service,
       g_debug ("%s", error->message);
       g_error_free (error);
 
-      evd_daemon_quit (evd_daemon);
+      evd_daemon_quit (evd_daemon, -1);
     }
 }
 
@@ -592,6 +590,7 @@ jsonrpc_on_method_called (EvdJsonrpc  *jsonrpc,
 gint
 main (gint argc, gchar *argv[])
 {
+  gint exit_status = 0;
   EvdWebDir *web_dir;
   EvdWebService *web_streamer;
   gchar *addr;
@@ -667,7 +666,7 @@ main (gint argc, gchar *argv[])
   evd_web_transport_set_selector (transport, selector);
 
   /* start the show */
-  evd_daemon_run (evd_daemon);
+  exit_status = evd_daemon_run (evd_daemon);
 
   /* free stuff */
   g_object_unref (selector);
