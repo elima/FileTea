@@ -243,6 +243,7 @@ file_transfer_on_read (GObject      *obj,
   if (! evd_http_connection_write_content (self->target_conn,
                                            self->buf,
                                            size,
+                                           TRUE,
                                            &error))
     {
       g_debug ("ERROR writing to target: %s", error->message);
