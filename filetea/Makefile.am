@@ -18,11 +18,13 @@ filetea_LDADD = \
 
 source_c = \
 	file-source.c \
-	file-transfer.c
+	file-transfer.c \
+	filetea-node.c
 
 source_h = \
 	file-source.h \
-	file-transfer.h
+	file-transfer.h \
+	filetea-node.h
 
 filetea_SOURCES = \
 	main.c \
