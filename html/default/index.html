@@ -2,48 +2,9 @@
 <html>
 
 <head>
-  <title>Anonymous, volatile file sharing</title>
-  <style>
-    body {
-        margin: 20px;
-        color: #4297d7;
-        font-family: Sans;
-        background-image: url(../common/gradient-top.png);
-        background-repeat: repeat-x;
-    }
+  <title>FileTea, anonymous, volatile file sharing</title>
 
-    #header {
-        height: 100px;
-    }
-
-    #footer {
-        margin-top: 40px;
-        height: 40px;
-        text-align: center;
-        width: 100%;
-        font-size: 90%;
-    }
-
-    #logo {
-        font-family: Sans;
-        height: 50px;
-        font-size: 46px;
-        font-weight: bold;
-        letter-spacing: -4px;
-        color: #666;
-    }
-
-    #slogan {
-        font-size: 17px;
-        padding-left: 5px;
-    }
-
-    #content {
-        display: none;
-        width: 100%;
-    }
-
-  </style>
+  <link type="text/css" href="main.css" rel="Stylesheet" />
 
   <!-- require.js -->
   <script type="text/javascript" src="../common/require.js"></script>
@@ -57,59 +18,16 @@
   <script type="text/javascript" src="/transport/evdWebTransport.js"></script>
 
   <!-- FileTea -->
-<!--  <script type="text/javascript" src="/fileTea.js"></script> -->
+  <script type="text/javascript" src="../common/fileTea.js"></script>
 
   <script type="text/javascript">
 
-var jsonRpc = null;
-var lazyFiles = [];
-
-var fileSources = {};
-var fileSourcesView;
-
-window.addEventListener ("unload", stop, false);
-
 $ (function () {
     var $tabs = $ ("#tabs");
-    $tabs.tabs ({
-        tabTemplate: "<li><a href='#{href}'>#{label}</a><span class='ui-icon ui-icon-close'>Remove Tab</span></li>"
-    });
-    $ ("#tabs span.ui-icon-close").live ("click",
-        function () {
-            var index = $ ("li", $tabs).index ($ (this).parent ());
-            $tabs.tabs ("remove", index);
-        });
 
-    $ ("#share-files-btn").button ();
-
-    require (["sharedFilesView.js"], function (SharedFilesView) {
-        fileSourcesView = new SharedFilesView ({
-            parentElement: $ ("#shared-files-list").get(0)
-        });
-
-        fileSourcesView.addEventListener ("source-added",
-            function () {
-                $ ("#tabs").tabs('select', "#shared-files-tab");
-            });
-        fileSourcesView.addEventListener ("source-removed",
-            function (ids) {
-                jsonRpc.rpc.callMethod ("removeFileSources", [false, ids],
-                    function (result, error) {
-                        if (error)
-                            alert ("ERROR: " + error);
-                    }, jsonRpc.peer);
-            });
-    });
-
-    setupFileDropZone (document, onFilesDropped);
+//    setupFileDropZone (document, onFilesDropped);
 
 /*
-    var fragId = new FragidNavigator ();
-    fragId.addEventListener ("change", function (oldFrag, newFrag) {
-        window.scroll (0, 0);
-    });
-*/
-
     var fileSourceId = isTargetDownload ();
     if (fileSourceId) {
         var params = [fileSourceId];
@@ -127,10 +45,13 @@ $ (function () {
                 }, jsonRpc.peer);
         });
     }
+*/
 
-    setTimeout (function () {
-        $ ("#content").get (0).style.display = "block";
-    }, 10);
+    Ft.content.add ("shared-files", "Shared files", null, null, {static: true});
+    Ft.content.add ("privacy-policy", "Privacy policy", null, null);
+    Ft.content.add ("legal-terms", "Legal Terms", null, null);
+
+    Ft.content.setDefault ("shared-files");
 });
 
 function isTargetDownload () {
@@ -139,131 +60,6 @@ function isTargetDownload () {
         return tokens[2].toString ();
     else
         return null;
-}
-
-function stop () {
-    if (jsonRpc)
-        jsonRpc.close ();
-}
-
-function setupFileDropZone (element, callback) {
-    var dropbox = element;
-
-    dropbox.addEventListener ("dragenter", dragenter, false);
-    dropbox.addEventListener ("dragover", dragover, false);
-    dropbox.addEventListener ("drop", drop, false);
-
-    function dragenter(e) {
-        e.stopPropagation();
-        e.preventDefault();
-    }
-
-    function dragover(e) {
-        e.stopPropagation();
-        e.preventDefault();
-    }
-
-    function drop(e) {
-        e.stopPropagation();
-        e.preventDefault();
-
-        var dt = e.dataTransfer;
-        var files = dt.files;
-
-        callback (files);
-    }
-}
-
-function setupJsonrpc (callback) {
-    require (["../common/jsonRpc.js"], function (jsonRpc) {
-        jsonRpc.addEventListener ("connected",
-            function () {
-                window.jsonRpc = this;
-
-                window.jsonRpc.rpc.registerMethod ("fileTransferNew",
-                    function (jsonRpc, params, invocationId, context) {
-                        if (newFileTransfer (params[0], params[1]))
-                            jsonRpc.respond (invocationId, [], context);
-                        else
-                            jsonrpc.respondError (invocationId,
-                                                  "Unknown file source",
-                                                  context);
-                    });
-
-                if (callback)
-                    callback (this);
-            });
-    });
-}
-
-function onFilesDropped (files) {
-    if (jsonRpc == null) {
-        setupJsonrpc (function (jsonRpc) {
-            while (lazyFiles.length > 0)
-                onNewFileSources (lazyFiles.shift ());
-        });
-
-        lazyFiles.push (files);
-    }
-    else
-        onNewFileSources (files);
-}
-
-function onNewFileSources (files) {
-    var params = [];
-    for (var i=0; i<files.length; i++) {
-        var file = files[i];
-        params.push ([file.name, file.type, file.size]);
-    }
-
-    jsonRpc.rpc.callMethod ("addFileSources", params,
-      function (result, error) {
-          if (error == null) {
-              addFileSources (files, result);
-          }
-          else {
-              alert ("ERROR: " + error);
-          }
-      }, jsonRpc.peer);
-}
-
-function addFileSources (files, ids) {
-    for (var i = 0; i < ids.length; i++)
-        if (ids[i] != null) {
-            var id = ids[i];
-            var file = files[i];
-
-            fileSources[id] = file;
-
-            var a = document.createElement ("A");
-            a.href = "/" + id;
-
-            fileSourcesView.add (id, file, a.href + "");
-        }
-}
-
-function newFileTransfer (sourceId, transferId) {
-    if (fileSources[sourceId] === undefined)
-      return false;
-
-    var file = fileSources[sourceId];
-    uploadFile (file, "/" + transferId);
-
-    return true;
-}
-
-function uploadFile (file, url) {
-    var xhr = new XMLHttpRequest ();
-    xhr.open ("PUT", url, true);
-    xhr.onload = function () {
-//        alert ("done");
-    };
-    xhr.send (file);
-}
-
-function filesAdded () {
-    var files = $ ("#shared-files-selector").get(0).files;
-    onFilesDropped (files);
 }
 
   </script>
@@ -279,15 +75,13 @@ function filesAdded () {
 
   <div id="tabs">
     <ul>
-      <li><a href="#shared-files-tab">Shared files</a></li>
-      <li><a href="#tabs-2">Transfers</a></li>
-      <li><a href="#tabs-3">Options</a></li>
-      <li><a href="#tabs-4">Help</a></li>
+      <li><a href="#shared-files">Shared files</a></li>
+<!--      <li><a href="#transfers">Transfers</a></li> -->
     </ul>
 
-    <div id="shared-files-tab">
+    <div id="shared-files">
       <link type="text/css" href="shared-files-view.css" rel="Stylesheet" />
-      <input type="file" multiple="true" id="shared-files-selector" onchange="filesAdded()"/>
+      <input type="file" multiple="true" id="shared-files-selector"/>
       <button id="share-files-btn" onclick="$ ('#shared-files-selector').get(0).click()">Add files</button>
       <div id="shared-files-list">
         <div id="shared-files-list-empty-notice">
@@ -295,26 +89,48 @@ function filesAdded () {
           <p class="comment">To share files use the 'Add files' button above or just drag-and-drop them into the page</p>
         </div>
       </div>
+
+      <script type="text/javascript">
+
+$ (function () {
+    require (["sharedFilesView.js"], function (SharedFilesView) {
+        var fileSourcesView = new SharedFilesView ({
+            parentElement: $ ("#shared-files-list").get(0),
+            fileSources: Ft.files
+        });
+
+        fileSourcesView.addEventListener ("item-added",
+            function () {
+                Ft.content.open ("shared-files");
+            });
+    });
+});
+
+      </script>
     </div>
-    <div id="tabs-2">
+
+<!--
+    <div id="transfers">
       <p>@TODO</p>
     </div>
-    <div id="tabs-3">
-      <p>@TODO</p>
-    </div>
-    <div id="tabs-4">
-      <p>@TODO</p>
-    </div>
+-->
   </div>
 
   </div>
 
   <div id="footer">
-    <span>Copyright &copy; 2011</span>
-    -
-    <span>
-      Powered by <a target="filetea_ext" href="http://blogs.free-social.net/elima/2010/10/14/eventdance-a-peer-to-peer-inter-process-communication-library/">EventDance</a>
-    </span>
+    <p>
+      <a href="#legal-terms">Legal Terms</a>
+      -
+      <a href="#privacy-policy">Privacy Policy</a>
+    </p>
+
+    <p>
+      Running
+      <a target="filetea_ext" href="https://gitorious.org/filetea/filetea">FileTea</a> version 0.1.1 available under the
+      <a target="filetea_ext" href="http://www.gnu.org/licenses/agpl-3.0.html">GNU Affero General Public License</a>
+    </p>
+
     <p>
       <a target="filetea_ext" href="http://en.wikipedia.org/wiki/HTML5"><img border="0" src="../common/html5_logo_32.png"/></a>
     </p>

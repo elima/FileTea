@@ -1,5 +1,4 @@
-// SharedFilesView class
-
+// SharedFilesView
 var SharedFilesView = new Evd.Constructor ();
 SharedFilesView.prototype = new Evd.Object ();
 
@@ -7,9 +6,43 @@ Evd.Object.extend (SharedFilesView.prototype, {
 
     _init: function (args) {
         this._parentElement = args.parentElement;
+        this._files = args.fileSources;
+
         this._items = {};
         this._itemCount = 0;
         this._emptyNoticeElement = document.getElementById ("shared-files-list-empty-notice");
+
+        var self = this;
+
+       this._files.addEventListener ("new-file",
+            function (file) {
+                self.add (file);
+            });
+
+        this._files.addEventListener ("registered",
+            function (file) {
+                self.setRegistered (file.id, file.url);
+            });
+
+        this._files.addEventListener ("unregistered",
+            function (file) {
+                self.setUnregistered (file.id);
+            });
+
+        $ ("#shared-files-selector").get (0).onchange =
+            function () {
+                self._addButtonOnChange ();
+            };
+
+        $ ("#share-files-btn").button ();
+
+        // @TODO: check if browser supports file drag-and-drop
+        this._setupFileDropZone (window.document);
+    },
+
+    _addButtonOnChange: function () {
+        var files = $ ("#shared-files-selector").get(0).files;
+        this._files.add (files);
     },
 
     _newContainer: function (parent, inner, className) {
@@ -21,16 +54,20 @@ Evd.Object.extend (SharedFilesView.prototype, {
     },
 
     _createThumbnail: function (file, imgElement) {
-        var reader = new FileReader();
-        reader.onload = function (e) {
-            imgElement.src = e.target.result;
-        };
-        reader.readAsDataURL (file);
+        try {
+            var reader = new FileReader();
+            reader.onload = function (e) {
+                imgElement.src = e.target.result;
+            };
+            reader.readAsDataURL (file);
+        }
+        catch (e) {}
     },
 
-    add: function (id, file, url) {
+    add: function (file) {
         var self = this;
 
+        var id = file.id;
         var name = file.name;
         var type = file.type;
         var size = file.size;
@@ -50,12 +87,19 @@ Evd.Object.extend (SharedFilesView.prototype, {
         item.nameEl = this._newContainer (item, name, "shared-file-name");
         item.infoEl = this._newContainer (item, size + " - " + type, "shared-file-info");
 
-        var urlHtml = "<input type='text' readonly='true' value='"+url+"'/>";
-        item.urlEl = this._newContainer (item, urlHtml, "shared-file-url");
-        item.onclick = function (e) {
-            this.urlEl.childNodes.item (0).select ();
-        };
-        item.urlEl.title = "Copy this link and send it to share the file";
+        item.urlEl = this._newContainer (item, "", "shared-file-url");
+        if (file.status == SourceStatus.REGISTERED) {
+            var url = file.url || "";
+            item.urlEl.innerHTML = "<input type='text' readonly='true' value='"+url+"'/>";
+            item.onclick = function (e) {
+                this.urlEl.childNodes.item (0).select ();
+            };
+            item.urlEl.title = "Copy this link and send it to share the file";
+            item.urlEl.childNodes.item (0).select ();
+        }
+        else {
+            item.urlEl.innerHTML = "<img src='../common/loading.gif'>";
+        }
 
         item.delEl = document.createElement ("img");
         item.delEl.src = "../common/delete.png";
@@ -73,25 +117,75 @@ Evd.Object.extend (SharedFilesView.prototype, {
         this._itemCount++;
 
         this._parentElement.appendChild (item);
-        item.urlEl.childNodes.item (0).select ();
 
-        this._fireEvent ("source-added", [id, file, url]);
+        this._fireEvent ("item-added", []);
     },
 
     remove: function (id) {
         var item = this._items[id];
-        if (item) {
-            delete (this._items[id]);
-            this._itemCount--;
+        if (! item)
+            return;
 
-            item.parentNode.removeChild (item);
-            this._fireEvent ("source-removed", [[id]]);
+        delete (this._items[id]);
+        this._itemCount--;
 
-            if (this._itemCount == 0)
-                this._parentElement.appendChild (this._emptyNoticeElement);
+        item.parentNode.removeChild (item);
+
+        this._files.remove ([id]);
+
+        if (this._itemCount == 0)
+            this._parentElement.appendChild (this._emptyNoticeElement);
+    },
+
+    setRegistered: function (id, url) {
+        var item = this._items[id];
+        if (! item)
+            return;
+
+        item.urlEl.innerHTML = "<input type='text' readonly='true' value='"+url+"'/>";
+        item.onclick = function (e) {
+            this.urlEl.childNodes.item (0).select ();
+        };
+        item.urlEl.title = "Copy this link and send it to share the file";
+        item.urlEl.childNodes.item (0).select ();
+    },
+
+    setUnregistered: function (id) {
+        var item = this._items[id];
+        if (! item)
+            return;
+
+        item.urlEl.innerHTML = "<img src='../common/loading.gif'>";
+    },
+
+    _setupFileDropZone: function (element) {
+        var dropbox = element;
+
+        dropbox.addEventListener ("dragenter", dragenter, false);
+        dropbox.addEventListener ("dragover", dragover, false);
+        dropbox.addEventListener ("drop", drop, false);
+
+        function dragenter(e) {
+            e.stopPropagation();
+            e.preventDefault();
+        }
+
+        function dragover(e) {
+            e.stopPropagation();
+            e.preventDefault();
+        }
+
+        var self = this;
+        function drop(e) {
+            e.stopPropagation();
+            e.preventDefault();
+
+            var dt = e.dataTransfer;
+            var files = dt.files;
+
+            self._files.add (files);
         }
     }
-
 });
 
 define (function () {

@@ -31,6 +31,7 @@
 }
 
 .shared-file-item {
+    position: relative;
     margin-top: 2px;
     padding: 0px;
     padding-left: 10px;
@@ -78,11 +79,11 @@
 }
 
 .shared-file-url {
-    position: relative;
+    position: absolute;
     display: block;
-    left: 45%;
-    width: 45%;
-    top: -30px;
+    left: 55%;
+    width: 20%;
+    top: 20%;
 }
 
 .shared-file-url input {
@@ -92,9 +93,15 @@
 }
 
 .shared-file-del-btn {
-    position: relative;
+    position: absolute;
+    display: block;
     left: 95%;
-    top: -53px;
+    top: 20%;
     width: 24px;
     cursor: pointer;
+}
+
+.shared-file-url img {
+    position: relative;
+    top: -5px;
 }
