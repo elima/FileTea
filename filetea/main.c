@@ -20,32 +20,26 @@
  * for more details.
  */
 
-#include <string.h>
 #include <evd.h>
 
-#include "file-source.h"
-#include "file-transfer.h"
+#include "filetea-node.h"
 
-#define LISTEN_PORT 8080
-
-#define SOURCE_ID_START_DEPTH 8
-
-#define PATH_REALM_FILE "file"
-
-#define PATH_ACTION_DOWNLOAD "download"
-
-static const gchar *instance_id = "1a0";
+#define DEFAULT_HTTP_LISTEN_PORT 8080
+#define DEFAULT_CONFIG_FILENAME "/etc/filetea/filetea.conf"
 
 static EvdDaemon *evd_daemon;
 
-static EvdPeerManager *peer_manager;
-static EvdWebSelector *selector;
-static EvdWebTransport *transport;
-static EvdJsonrpc *jsonrpc;
+static gchar *config_file = NULL;
+static gboolean daemonize = FALSE;
+static guint http_port = 0;
 
-static GHashTable *sources_by_id;
-static GHashTable *sources_by_peer;
-static GHashTable *transfers;
+static GOptionEntry entries[] =
+{
+  { "conf", 'c', 0, G_OPTION_ARG_STRING, &config_file, "Absolute path for the configuration file, default is '" DEFAULT_CONFIG_FILENAME "'", "filename" },
+  { "daemonize", 'D', 0, G_OPTION_ARG_NONE, &daemonize, "Run service in the background", NULL },
+  { "http-port", 'p', 0, G_OPTION_ARG_INT, &http_port, "Override the HTTP listening port specified in configuration file", "port" },
+  { NULL }
+};
 
 static void
 web_selector_on_listen (GObject      *service,
@@ -56,7 +50,10 @@ web_selector_on_listen (GObject      *service,
 
   if (evd_service_listen_finish (EVD_SERVICE (service), result, &error))
     {
-      g_debug ("Listening on port %d", LISTEN_PORT);
+      g_debug ("Listening on port %d", http_port);
+
+      if (daemonize)
+        evd_daemon_daemonize (evd_daemon, NULL);
     }
   else
     {
@@ -67,532 +64,16 @@ web_selector_on_listen (GObject      *service,
     }
 }
 
-static void
-on_new_transfer_response (GObject      *obj,
-                          GAsyncResult *res,
-                          gpointer      user_data)
-{
-  JsonNode *error_json;
-  JsonNode *result_json;
-  GError *error = NULL;
-
-  if (! evd_jsonrpc_call_method_finish (EVD_JSONRPC (obj),
-                                        res,
-                                        &result_json,
-                                        &error_json,
-                                        &error))
-    {
-      /* @TODO: source error, cancel transfer */
-      g_debug ("Error calling 'fileTransferNew' over JSON-RPC: %s", error->message);
-      g_error_free (error);
-      return;
-    }
-
-  if (error_json != NULL)
-    {
-      g_debug ("Transfer not accepted by peer");
-    }
-  else
-    {
-      json_node_free (result_json);
-    }
-}
-
-static void
-on_transfer_finished (GObject      *obj,
-                      GAsyncResult *res,
-                      gpointer      user_data)
-{
-  FileTransfer *transfer = user_data;
-  GError *error = NULL;
-
-  if (! file_transfer_finish (transfer, res, &error))
-    {
-      g_debug ("transfer failed: %s", error->message);
-      g_error_free (error);
-    }
-  else
-    {
-      g_debug ("Transfer completed successfully: %s",
-               transfer->source->file_name);
-    }
-
-  g_hash_table_remove (transfers, transfer->id);
-}
-
-static void
-setup_new_transfer (FileSource        *source,
-                    EvdHttpConnection *conn,
-                    gboolean           download)
-{
-  FileTransfer *transfer;
-  JsonNode *params;
-  JsonArray *arr;
-  gchar *uuid;
-  gchar *transfer_id;
-
-  uuid = evd_uuid_new ();
-  transfer_id = g_strconcat (instance_id, uuid, NULL);
-  transfer = file_transfer_new (transfer_id,
-                                source,
-                                conn,
-                                download,
-                                on_transfer_finished,
-                                NULL);
-  g_free (transfer_id);
-  g_free (uuid);
-
-  params = json_node_new (JSON_NODE_ARRAY);
-  arr = json_array_new ();
-  json_node_set_array (params, arr);
-
-  json_array_add_string_element (arr, source->id);
-  json_array_add_string_element (arr, transfer->id);
-
-  evd_jsonrpc_call_method (jsonrpc,
-                           "fileTransferNew",
-                           params,
-                           source->peer,
-                           NULL,
-                           on_new_transfer_response,
-                           transfer);
-  json_array_unref (arr);
-  json_node_free (params);
-
-  g_hash_table_insert (transfers, transfer->id, transfer);
-}
-
-static gboolean
-handle_special_request (EvdWebService       *web_streamer,
-                        EvdHttpConnection   *conn,
-                        EvdHttpRequest      *request,
-                        SoupURI             *uri,
-                        gchar             **tokens)
-{
-  const gchar *realm;
-  const gchar *id;
-  const gchar *action;
-  gboolean download;
-
-  realm = tokens[1];
-  id = tokens[1];
-  action = tokens[2];
-
-  download = g_strcmp0 (action, PATH_ACTION_DOWNLOAD) == 0;
-
-  if (g_strcmp0 (evd_http_request_get_method (request), "PUT") == 0)
-    {
-      FileTransfer *transfer;
-
-      transfer = g_hash_table_lookup (transfers, id);
-      if (transfer != NULL)
-        {
-          EvdStreamThrottle *throttle;
-
-          g_object_get (conn,
-                        "input-throttle", &throttle,
-                        NULL);
-          g_object_set (throttle,
-                        "bandwidth", 2048.0,
-                        NULL);
-          g_object_unref (throttle);
-
-          file_transfer_set_source_conn (transfer, conn);
-          file_transfer_start (transfer);
-
-          return TRUE;
-        }
-    }
-  else
-    {
-      FileSource *source;
-
-      source = g_hash_table_lookup (sources_by_id, id);
-      if (source != NULL)
-        {
-          /*
-          if (action == NULL || strlen (action) == 0)
-            {
-              gchar *new_path;
-
-              g_free (tokens[1]);
-              tokens[1] = NULL;
-
-              g_free (tokens[2]);
-              tokens[2] = NULL;
-
-              new_path = g_strjoinv ("/", tokens);
-              soup_uri_set_path (uri, new_path);
-              g_free (new_path);
-            }
-          else
-          */
-            {
-              setup_new_transfer (source, conn, /*download*/ TRUE);
-              return TRUE;
-            }
-        }
-    }
-
-  return FALSE;
-}
-
-static void
-web_streamer_on_request (EvdWebService     *web_streamer,
-                         EvdHttpConnection *conn,
-                         EvdHttpRequest    *request,
-                         gpointer           user_data)
-{
-  gchar **tokens;
-  SoupURI *uri;
-  guint tokens_len;
-
-  uri = evd_http_request_get_uri (request);
-
-  tokens = g_strsplit (uri->path, "/", 16);
-  tokens_len = g_strv_length (tokens);
-
-  if (tokens_len > 1 && g_strcmp0 (tokens[1], "transport") == 0)
-    {
-      evd_web_service_add_connection_with_request (EVD_WEB_SERVICE (transport),
-                                                   conn,
-                                                   request,
-                                                   NULL);
-    }
-  else if (tokens_len == 2 &&
-           handle_special_request (web_streamer, conn, request, uri, tokens))
-    {
-      /* @TODO: possibly, a request from a transfer endpoint */
-      g_debug ("transfer request");
-    }
-  else if (tokens_len == 2 &&
-           g_strcmp0 (tokens[1], "default") != 0 &&
-           g_strcmp0 (tokens[1], "common") != 0)
-    {
-      gchar *new_path;
-      GError *error = NULL;
-
-      /* @TODO: detect type of user-agent (mobile vs. desktop, and locale),
-         then redirect to correponding html root. By now, only default. */
-
-      new_path = g_strdup_printf ("/default%s", uri->path);
-
-      /* redirect */
-      if (! evd_http_connection_redirect (conn, new_path, FALSE, &error))
-        {
-          g_debug ("ERROR sending response to source: %s", error->message);
-          g_error_free (error);
-        }
-
-      g_free (new_path);
-    }
-  else
-    {
-      evd_web_service_add_connection_with_request (EVD_WEB_SERVICE (selector),
-                                                   conn,
-                                                   request,
-                                                   NULL);
-    }
-
-  /*
-  g_debug ("%s: %s", evd_http_request_get_method (request), uri->path);
-
-  if (tokens_len < 3 ||
-      g_strcmp0 (tokens[1], PATH_REALM_FILE) != 0 ||
-      ! handle_special_request (web_streamer,
-                                conn,
-                                request,
-                                uri,
-                                tokens))
-    {
-      evd_web_service_add_connection_with_request (EVD_WEB_SERVICE (selector),
-                                                   conn,
-                                                   request,
-                                                   NULL);
-    }
-  */
-
-  g_strfreev (tokens);
-}
-
-static void
-remove_file_source (FileSource *source, gboolean abort_transfers)
-{
-  g_hash_table_remove (sources_by_id, source->id);
-
-  if (abort_transfers)
-    {
-      /* @TODO */
-    }
-}
-
-static gboolean
-remove_file_source_foreach (gpointer key,
-                            gpointer value,
-                            gpointer user_data)
-{
-  FileSource *source = value;
-  gboolean abort_transfers = * (gboolean *) user_data;
-
-  remove_file_source (source, abort_transfers);
-
-  return TRUE;
-}
-
-static void
-on_new_peer (EvdPeerManager *self,
-             EvdPeer        *peer,
-             gpointer        user_data)
-{
-  g_debug ("New peer %s", evd_peer_get_id (peer));
-}
-
-static void
-on_peer_closed (EvdPeerManager *self,
-                EvdPeer        *peer,
-                gpointer        user_data)
-{
-  GHashTable *sources_of_peer;
-
-  sources_of_peer = g_hash_table_lookup (sources_by_peer, peer);
-  if (sources_of_peer != NULL)
-    {
-      gboolean abort_transfers = TRUE;
-
-      g_hash_table_foreach_remove (sources_of_peer,
-                                   remove_file_source_foreach,
-                                   &abort_transfers);
-
-      g_hash_table_remove (sources_by_peer, peer);
-    }
-
-  g_debug ("Closed peer %s", evd_peer_get_id (peer));
-}
-
-static gchar *
-generate_source_id (const gchar *instance_id)
-{
-  gchar *uuid;
-  gchar *id;
-  static gint depth = SOURCE_ID_START_DEPTH;
-  gint _depth;
-  gint fails;
-
-  _depth = depth - strlen (instance_id);
-  g_assert (_depth > 0 && _depth <= 40);
-
-  fails = 0;
-
-  uuid = evd_uuid_new ();
-  uuid[_depth] = '\0';
-  while (g_hash_table_lookup (sources_by_id, uuid) != NULL)
-    {
-      g_free (uuid);
-      fails++;
-      if (fails > 2)
-        {
-          depth++;
-          _depth = depth - strlen (instance_id);
-          fails = 0;
-        }
-
-      uuid = evd_uuid_new ();
-      uuid[_depth] = '\0';
-    }
-
-  id = g_strconcat (instance_id, uuid, NULL);
-  g_free (uuid);
-
-  return id;
-}
-
-static FileSource *
-add_file_source (JsonNode *item, EvdPeer *peer)
-{
-  JsonArray *a;
-  JsonNode *node;
-  gchar *id;
-  const gchar *name;
-  const gchar *type;
-  gssize size;
-  FileSource *source;
-  GHashTable *sources_of_peer;
-
-  a = json_node_get_array (item);
-
-  node = json_array_get_element (a, 0);
-  name = json_node_get_string (node);
-
-  node = json_array_get_element (a, 1);
-  type = json_node_get_string (node);
-
-  node = json_array_get_element (a, 2);
-  size = (gssize) json_node_get_int (node);
-
-  if (name == NULL || type == NULL || size <= 0)
-    return NULL;
-
-  id = generate_source_id (instance_id);
-  source = file_source_new (peer, id, name, type, size);
-  g_free (id);
-
-  g_hash_table_insert (sources_by_id, source->id, source);
-
-  sources_of_peer = g_hash_table_lookup (sources_by_peer, peer);
-  if (sources_of_peer == NULL)
-    {
-      sources_of_peer = g_hash_table_new_full (g_str_hash,
-                                               g_str_equal,
-                                               NULL,
-                                               (GDestroyNotify) file_source_unref);
-      g_hash_table_insert (sources_by_peer, peer, sources_of_peer);
-    }
-  g_hash_table_insert (sources_of_peer, source->id, file_source_ref (source));
-
-  g_debug ("Added new source '%s'", name);
-
-  return source;
-}
-
-static void
-remove_file_sources (JsonNode *ids, gboolean abort_transfers)
-{
-  JsonArray *a;
-  gint i;
-  JsonNode *item;
-
-  a = json_node_get_array (ids);
-
-  for (i=0; i < json_array_get_length (a); i++)
-    {
-      const gchar *id;
-      FileSource *source;
-
-      item = json_array_get_element (a, i);
-      id = json_node_get_string (item);
-
-      source = g_hash_table_lookup (sources_by_id, id);
-      if (source != NULL)
-        {
-          GHashTable *sources_of_peer;
-
-          g_debug ("Removed file source '%s'", source->file_name);
-
-          remove_file_source (source, abort_transfers);
-
-          sources_of_peer = g_hash_table_lookup (sources_by_peer, source->peer);
-          if (sources_of_peer != NULL)
-            g_hash_table_remove (sources_of_peer, source->id);
-        }
-    }
-}
-
-static void
-jsonrpc_on_method_called (EvdJsonrpc  *jsonrpc,
-                          const gchar *method_name,
-                          JsonNode    *params,
-                          guint        invocation_id,
-                          gpointer     context,
-                          gpointer     user_data)
-{
-  EvdPeer *peer = EVD_PEER (context);
-  GError *error = NULL;
-  JsonArray *a;
-  gint i;
-  JsonNode *item;
-  JsonNode *result = NULL;
-  JsonArray *result_arr = NULL;
-
-  a = json_node_get_array (params);
-
-  if (g_strcmp0 (method_name, "addFileSources") == 0)
-    {
-      FileSource *source;
-
-      result = json_node_new (JSON_NODE_ARRAY);
-      result_arr = json_array_new ();
-      json_node_set_array (result, result_arr);
-
-      for (i = 0; i < json_array_get_length (a); i++)
-        {
-          item = json_array_get_element (a, i);
-
-          source = add_file_source (item, peer);
-          if (source != NULL)
-            json_array_add_string_element (result_arr, source->id);
-          else
-            json_array_add_null_element (result_arr);
-        }
-    }
-  else if (g_strcmp0 (method_name, "removeFileSources") == 0)
-    {
-      gboolean abort_transfers;
-
-      item = json_array_get_element (a, 0);
-      abort_transfers = json_node_get_boolean (item);
-
-      item = json_array_get_element (a, 1);
-
-      remove_file_sources (item, abort_transfers);
-    }
-  else if (g_strcmp0 (method_name, "getFileSourceInfo") == 0)
-    {
-      const gchar *id;
-      FileSource *source;
-
-      id = json_array_get_string_element (a, 0);
-      if (id != NULL && (source = g_hash_table_lookup (sources_by_id, id)) != NULL)
-        {
-          result = json_node_new (JSON_NODE_ARRAY);
-          result_arr = json_array_new ();
-          json_node_set_array (result, result_arr);
-
-          json_array_add_string_element (result_arr, source->file_name);
-          json_array_add_string_element (result_arr, source->file_type);
-          json_array_add_int_element (result_arr, source->file_size);
-        }
-      else
-        {
-          /* @TODO: respond error, file not found */
-        }
-    }
-  else
-    {
-      /* @TODO: error, method not handled */
-      g_debug ("ERROR: unhandled method: %s", method_name);
-    }
-
-  if (error == NULL)
-    {
-      if (! evd_jsonrpc_respond (jsonrpc,
-                                 invocation_id,
-                                 result,
-                                 peer,
-                                 &error))
-        {
-          g_debug ("error responding JSON-RPC: %s", error->message);
-          g_error_free (error);
-        }
-
-      if (result != NULL)
-        {
-          json_node_free (result);
-          json_array_unref (result_arr);
-        }
-    }
-  else
-    {
-      /* @TODO: respond with error */
-      g_error_free (error);
-    }
-}
-
 gint
 main (gint argc, gchar *argv[])
 {
   gint exit_status = 0;
-  EvdWebDir *web_dir;
-  EvdWebService *web_streamer;
+
+  GError *error = NULL;
+  GKeyFile *config = NULL;
+  GOptionContext *context = NULL;
+
+  FileteaNode *node;
   gchar *addr;
 
   g_type_init ();
@@ -601,88 +82,92 @@ main (gint argc, gchar *argv[])
   /* main daemon */
   evd_daemon = evd_daemon_get_default (&argc, &argv);
 
-  /* hash tables for indexing file sources */
-  sources_by_id = g_hash_table_new_full (g_str_hash,
-                                         g_str_equal,
-                                         NULL,
-                                         (GDestroyNotify) file_source_unref);
-  sources_by_peer = g_hash_table_new_full (g_direct_hash,
-                                           g_direct_equal,
-                                           NULL,
-                                           (GDestroyNotify) g_hash_table_unref);
+  /* parse command line args */
+  context = g_option_context_new ("- low friction file sharing service daemon");
+  g_option_context_add_main_entries (context, entries, NULL);
+  if (! g_option_context_parse (context, &argc, &argv, &error))
+    {
+      g_debug ("ERROR parsing commandline options: %s", error->message);
+      g_error_free (error);
 
-  /* hash tables for indexing file transfers */
-  transfers = g_hash_table_new_full (g_str_hash,
-                                     g_str_equal,
-                                     NULL,
-                                     (GDestroyNotify) file_transfer_unref);
+      exit_status = -1;
+      goto out;
+    }
 
-  /* web streamer */
-  web_streamer = evd_web_service_new ();
+  if (config_file == NULL)
+    config_file = g_strdup (DEFAULT_CONFIG_FILENAME);
 
-  g_signal_connect (web_streamer,
-                    "request-headers",
-                    G_CALLBACK (web_streamer_on_request),
-                    NULL);
+  /* load and parse configuration file */
+  config = g_key_file_new ();
+  if (! g_key_file_load_from_file (config,
+                                   config_file,
+                                   G_KEY_FILE_NONE,
+                                   &error))
+    {
+      g_debug ("ERROR loading configuration: %s", error->message);
+      g_error_free (error);
 
-  addr = g_strdup_printf ("0.0.0.0:%d", LISTEN_PORT);
-  evd_service_listen (EVD_SERVICE (web_streamer),
+      exit_status = -1;
+      goto out;
+    }
+
+  /* obtain HTTP listening port from config */
+  if (http_port == 0)
+    {
+      http_port = g_key_file_get_integer (config, "http", "port", &error);
+      if (http_port == 0)
+        {
+          if (error->code != G_KEY_FILE_ERROR_KEY_NOT_FOUND)
+            {
+              g_debug ("ERROR, invalid HTTP port: %s", error->message);
+              g_error_free (error);
+
+              exit_status = -1;
+              goto out;
+            }
+
+          g_error_free (error);
+        }
+    }
+
+  if (http_port == 0)
+    http_port = DEFAULT_HTTP_LISTEN_PORT;
+
+  /* Filetea node */
+  node = filetea_node_new (config, &error);
+  if (node == NULL)
+    {
+      g_debug ("ERROR, failed setting up service: %s", error->message);
+      g_error_free (error);
+
+      exit_status = -1;
+      goto out;
+    }
+
+  addr = g_strdup_printf ("0.0.0.0:%d", http_port);
+  evd_service_listen (EVD_SERVICE (node),
                       addr,
                       NULL,
                       web_selector_on_listen,
                       NULL);
   g_free (addr);
 
-  /* web transport */
-  transport = evd_web_transport_new (NULL);
-  evd_web_transport_set_enable_websocket (transport, FALSE);
-
-  /* JSON-RPC */
-  jsonrpc = evd_jsonrpc_new ();
-  evd_jsonrpc_set_method_call_callback (jsonrpc,
-                                        jsonrpc_on_method_called,
-                                        NULL);
-  evd_jsonrpc_use_transport (jsonrpc, EVD_TRANSPORT (transport));
-
-  /* peer manager */
-  peer_manager = evd_peer_manager_get_default ();
-  g_signal_connect (peer_manager,
-                    "new-peer",
-                    G_CALLBACK (on_new_peer),
-                    NULL);
-  g_signal_connect (peer_manager,
-                    "peer-closed",
-                    G_CALLBACK (on_peer_closed),
-                    NULL);
-
-  /* web dir */
-  web_dir = evd_web_dir_new ();
-  evd_web_dir_set_root (web_dir, HTML_DATA_DIR);
-
-  /* web selector */
-  selector = evd_web_selector_new ();
-
-  evd_web_selector_set_default_service (selector, EVD_SERVICE (web_dir));
-  evd_web_transport_set_selector (transport, selector);
-
   /* start the show */
   exit_status = evd_daemon_run (evd_daemon);
 
   /* free stuff */
-  g_object_unref (selector);
-  g_object_unref (web_dir);
-  g_object_unref (peer_manager);
-  g_object_unref (jsonrpc);
-  g_object_unref (transport);
-  g_object_unref (web_streamer);
-
-  g_hash_table_unref (transfers);
-  g_hash_table_unref (sources_by_peer);
-  g_hash_table_unref (sources_by_id);
-
+  g_object_unref (node);
   g_object_unref (evd_daemon);
 
+ out:
+  g_option_context_free (context);
+  g_free (config_file);
+  if (config != NULL)
+    g_key_file_free (config);
+
   evd_tls_deinit ();
+
+  g_debug ("clean exit");
 
   return exit_status;
 }
