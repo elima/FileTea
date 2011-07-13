@@ -23,6 +23,7 @@
 #ifndef _FILE_SOURCE_H_
 #define _FILE_SOURCE_H_
 
+#include <glib-object.h>
 #include <evd.h>
 
 typedef struct
@@ -33,13 +34,15 @@ typedef struct
   gsize file_size;
   gchar *id;
   gint ref_count;
+  GObject *node;
 } FileSource;
 
 FileSource * file_source_new  (EvdPeer     *peer,
                                const gchar *id,
                                const gchar *file_name,
                                const gchar *file_type,
-                               gsize        file_size);
+                               gsize        file_size,
+                               GObject     *node);
 
 FileSource * file_source_ref   (FileSource *self);
 void         file_source_unref (FileSource *self);

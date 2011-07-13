@@ -27,7 +27,8 @@ file_source_new (EvdPeer     *peer,
                  const gchar *id,
                  const gchar *file_name,
                  const gchar *file_type,
-                 gsize        file_size)
+                 gsize        file_size,
+                 GObject     *node)
 {
   FileSource *self;
 
@@ -47,6 +48,12 @@ file_source_new (EvdPeer     *peer,
   self->file_type = g_strdup (file_type);
   self->file_size = file_size;
 
+  if (node != NULL)
+    {
+      self->node = node;
+      g_object_ref (node);
+    }
+
   return self;
 }
 
@@ -60,6 +67,9 @@ file_source_free (FileSource *self)
   g_free (self->file_type);
 
   g_object_unref (self->peer);
+
+  if (self->node != NULL)
+    g_object_unref (self->node);
 
   g_slice_free (FileSource, self);
 }
