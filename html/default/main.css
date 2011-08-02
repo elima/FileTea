@@ -1,0 +1,38 @@
+body {
+    margin: 20px;
+    color: #4297d7;
+    font-family: Sans;
+    background-image: url(../common/gradient-top.png);
+    background-repeat: repeat-x;
+}
+
+#header {
+    height: 100px;
+}
+
+#footer {
+    margin-top: 60px;
+    text-align: center;
+    width: 100%;
+    font-size: 90%;
+    display: normal;
+}
+
+#logo {
+    font-family: Sans;
+    height: 50px;
+    font-size: 46px;
+    font-weight: bold;
+    letter-spacing: -4px;
+    color: #666;
+}
+
+#slogan {
+    font-size: 17px;
+    padding-left: 5px;
+}
+
+#content {
+    display: none;
+    width: 100%;
+}
