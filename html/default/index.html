@@ -25,42 +25,11 @@
 $ (function () {
     var $tabs = $ ("#tabs");
 
-//    setupFileDropZone (document, onFilesDropped);
-
-/*
-    var fileSourceId = isTargetDownload ();
-    if (fileSourceId) {
-        var params = [fileSourceId];
-
-        setupJsonrpc (function (jsonRpc) {
-            jsonRpc.rpc.callMethod ("getFileSourceInfo", params,
-                function (result, error) {
-                    if (error == null) {
-                        $tabs.tabs ("add", "#download", "Download", 0);
-                        $tabs.tabs ("select", "#download");
-                    }
-                   else {
-                       alert ("ERROR: " + error);
-                   }
-                }, jsonRpc.peer);
-        });
-    }
-*/
-
-    Ft.content.add ("shared-files", "Shared files", null, null, {static: true});
-    Ft.content.add ("privacy-policy", "Privacy policy", null, null);
-    Ft.content.add ("legal-terms", "Legal Terms", null, null);
+    Ft.content.add ("shared-files", "Shared files", "", null, null, {static: true});
+    Ft.content.add ("privacy-policy", "Privacy policy", "../common/privacy-policy.html", null, null);
 
     Ft.content.setDefault ("shared-files");
 });
-
-function isTargetDownload () {
-    var tokens = window.location.pathname.toString ().split ("/");
-    if (tokens && tokens.length > 2 && tokens[1] == "file" && tokens[2])
-        return tokens[2].toString ();
-    else
-        return null;
-}
 
   </script>
 </head>
@@ -120,8 +89,6 @@ $ (function () {
 
   <div id="footer">
     <p>
-      <a href="#legal-terms">Legal Terms</a>
-      -
       <a href="#privacy-policy">Privacy Policy</a>
     </p>
 
