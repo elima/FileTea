@@ -125,13 +125,14 @@ Evd.Object.extend (ContentManager.prototype, {
         this._contents = {};
     },
 
-    add: function (id, name, desc, content, options) {
+    add: function (id, name, url, desc, content, options) {
         if (! options)
             options = {};
 
         var c = {
             id: id,
             name: name,
+            url: url,
             desc: desc,
             content: content,
             options: options
@@ -158,7 +159,7 @@ Evd.Object.extend (ContentManager.prototype, {
         var self = this;
         if (c.content == null && c.options["static"] !== true) {
             jQuery.ajax ({
-                url: id + ".html",
+                url: c.url,
                 success: function (data, statusText) {
                     c.content = data;
                     self._fireEvent ("add", [c.id, c.name, c.desc, c.content]);
