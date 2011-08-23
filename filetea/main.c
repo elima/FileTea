@@ -179,7 +179,7 @@ main (gint argc, gchar *argv[])
 
   evd_tls_deinit ();
 
-  g_debug ("clean exit");
+  g_print ("FileTea node terminated\n");
 
   return exit_status;
 }
