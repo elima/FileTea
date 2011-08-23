@@ -49,35 +49,11 @@ struct _FileteaNodePrivate
   GHashTable *transfers;
 };
 
-/* signals */
-enum
-{
-  SIGNAL_LAST
-};
-
-//static guint filetea_node_signals[SIGNAL_LAST] = { 0 };
-
-/* properties */
-enum
-{
-  PROP_0,
-  PROP_ID
-};
-
 static void     filetea_node_class_init         (FileteaNodeClass *class);
 static void     filetea_node_init               (FileteaNode *self);
 
 static void     filetea_node_finalize           (GObject *obj);
 static void     filetea_node_dispose            (GObject *obj);
-
-static void     set_property                    (GObject      *obj,
-                                                 guint         prop_id,
-                                                 const GValue *value,
-                                                 GParamSpec   *pspec);
-static void     get_property                    (GObject    *obj,
-                                                 guint       prop_id,
-                                                 GValue     *value,
-                                                 GParamSpec *pspec);
 
 static void     on_new_peer                     (EvdPeerManager *self,
                                                  EvdPeer        *peer,
@@ -106,18 +82,8 @@ filetea_node_class_init (FileteaNodeClass *class)
 
   obj_class->dispose = filetea_node_dispose;
   obj_class->finalize = filetea_node_finalize;
-  obj_class->get_property = get_property;
-  obj_class->set_property = set_property;
 
   ws_class->request_handler = request_handler;
-
-  g_object_class_install_property (obj_class, PROP_ID,
-                                   g_param_spec_string ("id",
-                                                        "Peer's UUID",
-                                                        "A string representing the UUID of the peer",
-                                                        NULL,
-                                                        G_PARAM_READABLE |
-                                                        G_PARAM_STATIC_STRINGS));
 
   g_type_class_add_private (obj_class, sizeof (FileteaNodePrivate));
 }
@@ -233,48 +199,6 @@ filetea_node_finalize (GObject *obj)
   g_object_unref (self->priv->selector);
 
   G_OBJECT_CLASS (filetea_node_parent_class)->finalize (obj);
-
-  g_debug ("*** Filetea Node finalized");
-}
-
-static void
-set_property (GObject      *obj,
-              guint         prop_id,
-              const GValue *value,
-              GParamSpec   *pspec)
-{
-  //  FileteaNode *self;
-
-  //  self = FILETEA_NODE (obj);
-
-  switch (prop_id)
-    {
-    default:
-      G_OBJECT_WARN_INVALID_PROPERTY_ID (obj, prop_id, pspec);
-      break;
-    }
-}
-
-static void
-get_property (GObject    *obj,
-              guint       prop_id,
-              GValue     *value,
-              GParamSpec *pspec)
-{
-  FileteaNode *self;
-
-  self = FILETEA_NODE (obj);
-
-  switch (prop_id)
-    {
-    case PROP_ID:
-      g_value_set_string (value, filetea_node_get_id (self));
-      break;
-
-    default:
-      G_OBJECT_WARN_INVALID_PROPERTY_ID (obj, prop_id, pspec);
-      break;
-    }
 }
 
 static gchar *
