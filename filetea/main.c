@@ -32,6 +32,7 @@ static EvdDaemon *evd_daemon;
 static gchar *config_file = NULL;
 static gboolean daemonize = FALSE;
 static guint http_port = 0;
+static GKeyFile *config = NULL;
 
 static GOptionEntry entries[] =
 {
@@ -47,21 +48,33 @@ web_selector_on_listen (GObject      *service,
                         gpointer      user_data)
 {
   GError *error = NULL;
+  gchar *user = NULL;
 
-  if (evd_service_listen_finish (EVD_SERVICE (service), result, &error))
+  if (! evd_service_listen_finish (EVD_SERVICE (service), result, &error))
+    goto quit;
+
+  /* set 'user' as process owner, if specified */
+  user = g_key_file_get_string (config, "node", "user", NULL);
+  if (user != NULL)
     {
-      g_debug ("Listening on port %d", http_port);
+      if (! evd_daemon_set_user (evd_daemon, user, &error))
+        goto quit;
 
-      if (daemonize)
-        evd_daemon_daemonize (evd_daemon, NULL);
+      g_free (user);
     }
-  else
-    {
-      g_debug ("%s", error->message);
-      g_error_free (error);
 
-      evd_daemon_quit (evd_daemon, -1);
-    }
+  if (daemonize)
+    evd_daemon_daemonize (evd_daemon, NULL);
+
+  g_debug ("Listening on port %d", http_port);
+
+  return;
+
+ quit:
+  g_debug ("%s", error->message);
+  g_error_free (error);
+
+  evd_daemon_quit (evd_daemon, -1);
 }
 
 gint
@@ -70,7 +83,6 @@ main (gint argc, gchar *argv[])
   gint exit_status = 0;
 
   GError *error = NULL;
-  GKeyFile *config = NULL;
   GOptionContext *context = NULL;
 
   FileteaNode *node;
