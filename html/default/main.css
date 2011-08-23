@@ -12,9 +12,9 @@ body {
 
 #footer {
     margin-top: 60px;
-    text-align: center;
+    text-align: left;
     width: 100%;
-    font-size: 90%;
+    font-size: 85%;
     display: normal;
 }
 
@@ -35,4 +35,19 @@ body {
 #content {
     display: none;
     width: 100%;
+}
+
+ul#list {
+    list-style-type: none;
+}
+
+#list li {
+    float: left;
+    padding-right: 20px;
+    text-align: left;
+}
+
+#list li#powered-box {
+    float: right;
+    text-align: center;
 }
