@@ -30,8 +30,6 @@ m4_define([prj_version_micro], [2])
 
 m4_define([prj_version],
           [prj_version_major.prj_version_minor.prj_version_micro])
-m4_define([prj_api_version],
-          [prj_version_major.prj_version_minor])
 
 AC_INIT([prj_name],
 	[prj_version],
@@ -41,15 +39,6 @@ AC_CONFIG_HEADERS(config.h)
 AC_CONFIG_MACRO_DIR([m4])
 
 AM_INIT_AUTOMAKE
-
-EVD_VERSION="prj_version"
-AC_SUBST(FILETEA_VERSION)
-
-EVD_API_VERSION="prj_api_version"
-AC_SUBST(FILETEA_API_VERSION)
-
-EVD_API_NAME="prj_short_name-prj_api_version"
-AC_SUBST(FILETEA_API_NAME)
 
 # Check for programs
 AC_PROG_LIBTOOL
@@ -83,8 +72,8 @@ AC_OUTPUT([
 ])
 
 echo ""
-echo "   FileTea $VERSION"
-echo "   ====================="
+echo "   prj_name $VERSION"
+echo "   ========================="
 echo ""
 echo "              Install prefix:   ${prefix}"
 echo "      Enable automated tests:   ${enable_tests}"
