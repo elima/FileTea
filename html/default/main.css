@@ -27,6 +27,42 @@ body {
     color: #666;
 }
 
+div.corner-banner {
+    position: absolute;
+    overflow: hidden;
+    width: 100px;
+    height: 100px;
+    top: 0px;
+    right: 0px;
+}
+
+div.corner-banner div {
+    display: block;
+    position: absolute;
+
+    padding-top: 8px;
+    letter-spacing: 3px;
+    font-size: 14px;
+    width: 400px;
+    height: 25px;
+    background-color: #FF7700;
+    border: solid 1px #EEE;
+    font-weight: bold;
+    right: -175px;
+    top: 10px;
+    color: #FFF;
+    text-align: center;
+
+    transform: rotate(45deg);
+    -webkit-transform: rotate(45deg);
+    -moz-transform: rotate(45deg);
+    -o-transform: rotate(45deg);
+
+    -moz-box-shadow: 3px 3px 5px #333;
+    -webkit-box-shadow: 3px 3px 5px #333;
+    box-shadow: 3px 3px 5px #333;
+}
+
 #slogan {
     font-size: 17px;
     padding-left: 5px;
