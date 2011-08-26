@@ -21,8 +21,11 @@ body {
 #logo {
     font-family: Sans;
     height: 50px;
-    font-size: 46px;
     font-weight: bold;
+}
+
+#logo h1 {
+    font-size: 46px;
     letter-spacing: -4px;
     color: #666;
 }
