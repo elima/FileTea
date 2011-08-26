@@ -5,6 +5,7 @@
 
 #shared-files-list {
     padding-top: 10px;
+    min-height: 200px;
 }
 
 #shared-files-list-empty-notice {
@@ -15,7 +16,7 @@
 }
 
 #shared-files-list-empty-notice .title {
-    font-size: 20px;
+    font-size: 140%;
     color: #FF7700;
 }
 
