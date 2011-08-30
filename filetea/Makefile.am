@@ -14,7 +14,8 @@ filetea_CFLAGS = \
 
 filetea_LDADD = \
 	$(EVD_LIBS) \
-	$(JSON_LIBS)
+	$(JSON_LIBS) \
+	-lgcrypt
 
 source_c = \
 	file-source.c \
