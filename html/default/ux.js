@@ -29,6 +29,20 @@ Evd.Object.extend (UxManager.prototype, {
             });
 
         $ (function () {
+               // shared-files view
+               require (["sharedFilesView.js"],
+                   function (SharedFilesView) {
+                       self._sharedFilesView = new SharedFilesView ({
+                           parentElement: $ ("#shared-files-list").get(0),
+                           fileSources: Ft.files
+                       });
+
+                       self._sharedFilesView.addEventListener ("item-added",
+                           function () {
+                               Ft.content.open ("shared-files");
+                           });
+                   });
+
                self._tabs = $ ("#tabs");
 
                self._tabs.tabs ({

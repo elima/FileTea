@@ -61,24 +61,6 @@ $ (function () {
           <p class="comment">To share files use the 'Add files' button above or just drag-and-drop them into the page</p>
         </div>
       </div>
-
-      <script type="text/javascript">
-
-$ (function () {
-    require (["sharedFilesView.js"], function (SharedFilesView) {
-        var fileSourcesView = new SharedFilesView ({
-            parentElement: $ ("#shared-files-list").get(0),
-            fileSources: Ft.files
-        });
-
-        fileSourcesView.addEventListener ("item-added",
-            function () {
-                Ft.content.open ("shared-files");
-            });
-    });
-});
-
-      </script>
     </div>
 
 <!--
