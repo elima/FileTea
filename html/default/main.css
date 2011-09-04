@@ -92,3 +92,12 @@ ul#list {
     float: right;
     text-align: center;
 }
+
+#dialog-confirm-close {
+    color: #4297d7;
+    display: none;
+    background-image: url('../common/warning.png');
+    background-repeat: no-repeat;
+    padding-left: 170px;
+    margin: 10px;
+}

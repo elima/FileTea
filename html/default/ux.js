@@ -28,6 +28,25 @@ Evd.Object.extend (UxManager.prototype, {
                 self._tabs.tabs ("select", "#" + id);
             });
 
+        // confirm before navigating away from page
+        window.onbeforeunload = function () {
+            if (self._sharedFilesView.isEmpty ())
+                return null;
+
+            $("#dialog-confirm-close").dialog ({
+                width: 640,
+                height: 220,
+                modal: true,
+                position: "top",
+                hide: "blind"
+            });
+            setTimeout (function () {
+                            $( "#dialog-confirm-close" ).dialog("close");
+                        }, 1);
+
+            return "If you navigate away from this page, shared files will be removed and any active transfer will be interrupted. Are you sure?";
+        };
+
         $ (function () {
                // shared-files view
                require (["sharedFilesView.js"],
