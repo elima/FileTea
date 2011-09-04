@@ -121,6 +121,10 @@ Evd.Object.extend (SharedFilesView.prototype, {
         this._fireEvent ("item-added", []);
     },
 
+    isEmpty: function () {
+        return this._itemCount == 0;
+    },
+
     remove: function (id) {
         var item = this._items[id];
         if (! item)
