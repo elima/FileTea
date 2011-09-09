@@ -101,3 +101,11 @@ ul#list {
     padding-left: 170px;
     margin: 10px;
 }
+
+#content-loading {
+    background-image: url('../common/loading_big.gif');
+    background-repeat: no-repeat;
+    background-position: center center;
+    text-align: center;
+    min-height: 250px;
+}

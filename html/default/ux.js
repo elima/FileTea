@@ -10,22 +10,33 @@ Evd.Object.extend (UxManager.prototype, {
         this._baseTitle = document.title;
 
         this._content = args.contentManager;
+
+        function getTab (id, name, desc) {
+            var div = document.getElementById (id);
+            if (! div) {
+                div = document.createElement ("div");
+                div.id = id;
+                document.getElementById ("tabs").appendChild (div);
+                self._tabs.tabs ("add", "#" + id, name);
+            }
+
+            return div;
+        }
+
         this._content.addEventListener ("add",
             function (id, name, desc, content) {
-                var div = document.getElementById (id);
-                if (! div) {
-                    div = document.createElement ("div");
-                    div.id = id;
-                    document.getElementById ("tabs").appendChild (div);
-                    self._tabs.tabs ("add", "#" + id, name);
-                }
-
+                var div = getTab (id, name, desc);
                 div.innerHTML = content;
             });
         this._content.addEventListener ("show",
             function (id, name, desc, content) {
                 document.title = name + " - " + self._baseTitle;
                 self._tabs.tabs ("select", "#" + id);
+            });
+        this._content.addEventListener ("loading",
+            function (id, name, desc) {
+                var div = getTab (id, name, desc);
+                div.innerHTML = '<div id="content-loading"></div>';
             });
 
         // confirm before navigating away from page

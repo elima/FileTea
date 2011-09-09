@@ -158,6 +158,8 @@ Evd.Object.extend (ContentManager.prototype, {
 
         var self = this;
         if (c.content == null && c.options["static"] !== true) {
+            self._fireEvent ("loading", [c.id, c.name, c.description]);
+
             jQuery.ajax ({
                 url: c.url,
                 success: function (data, statusText) {
