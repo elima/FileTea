@@ -32,6 +32,15 @@ G_DEFINE_TYPE (FileteaNode, filetea_node, EVD_TYPE_WEB_SERVICE)
 
 #define DEFAULT_SOURCE_ID_START_DEPTH 8
 
+#define FILETEA_ERROR_DOMAIN_STR "me.filetea.ErrorDomain"
+#define FILETEA_ERROR            g_quark_from_string (FILETEA_ERROR_DOMAIN_STR)
+
+typedef enum {
+  FILETEA_ERROR_SUCCESS,
+  FILETEA_ERROR_FILE_NOT_FOUND,
+  FILETEA_ERROR_RPC_UNKNOWN_METHOD
+} FileteaErrorEnum;
+
 /* private data */
 struct _FileteaNodePrivate
 {
@@ -680,26 +689,29 @@ rpc_on_method_called (EvdJsonrpc  *jsonrpc,
         }
       else
         {
-          /* @TODO: respond error, file not found */
+          g_set_error (&error,
+                       FILETEA_ERROR,
+                       FILETEA_ERROR_FILE_NOT_FOUND,
+                       "No source file with id '%s'", id);
         }
     }
   else
     {
-      /* @TODO: error, method not handled */
-      g_debug ("ERROR: unhandled method: %s", method_name);
+      /* error, method not known/handled */
+      g_set_error (&error,
+                   FILETEA_ERROR,
+                   FILETEA_ERROR_RPC_UNKNOWN_METHOD,
+                   "Unknown or unhandled JSON-RPC method '%s'", method_name);
     }
 
   if (error == NULL)
     {
-      if (! evd_jsonrpc_respond (jsonrpc,
-                                 invocation_id,
-                                 result,
-                                 peer,
-                                 &error))
-        {
-          g_debug ("error responding JSON-RPC: %s", error->message);
-          g_error_free (error);
-        }
+      /* respond method call */
+      evd_jsonrpc_respond (jsonrpc,
+                           invocation_id,
+                           result,
+                           peer,
+                           &error);
 
       if (result != NULL)
         json_node_free (result);
@@ -708,7 +720,35 @@ rpc_on_method_called (EvdJsonrpc  *jsonrpc,
     }
   else
     {
-      /* @TODO: respond with error */
+      JsonObject *obj;
+
+      /* build error object and respond with error */
+      result = json_node_new (JSON_NODE_OBJECT);
+      obj = json_object_new ();
+      json_node_set_object (result, obj);
+
+      json_object_set_int_member (obj, "code", error->code);
+      json_object_set_string_member (obj, "message", error->message);
+
+      g_clear_error (&error);
+
+      evd_jsonrpc_respond_error (jsonrpc,
+                                 invocation_id,
+                                 result,
+                                 peer,
+                                 &error);
+
+      json_object_unref (obj);
+      json_node_free (result);
+    }
+
+
+  if (error != NULL)
+    {
+      /* failed to respond method call */
+
+      /* @TODO: do proper logging */
+      g_debug ("ERROR responding JSON-RPC method call: %s", error->message);
       g_error_free (error);
     }
 }
