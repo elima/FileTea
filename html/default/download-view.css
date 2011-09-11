@@ -1,0 +1,50 @@
+#download-view .table {
+    display: table;
+    color: #4297d7;
+}
+
+#download-view .row {
+    display: table-row;
+    padding: 4px;
+}
+
+#download-view .field {
+    display: table-cell;
+}
+
+#download-view .field.value {
+    color: #666;
+}
+
+#download-view .field.name {
+    padding-right: 10px;
+    text-align: right;
+}
+
+#download-view-name {
+    font-weight: bold;
+}
+
+#download-view a.download-button {
+    margin-left: 40px;
+    padding: 5px;
+    font-size: 30px;
+    font-weight: bold;
+}
+
+#download-view a.download-button span {
+    color: #666;
+    padding: 10px;
+    padding-left: 10px;
+    padding-right: 20px;
+}
+
+#download-view img {
+    float: left;
+    margin-right: 20px;
+}
+
+#download-view p {
+    padding-top: 0px;
+    padding-left: 80px;
+}
