@@ -76,6 +76,17 @@ div.corner-banner div {
     display: none;
     width: 100%;
     float: left;
+    color: #666;
+}
+
+#content p, #content li  {
+    color: #666;
+}
+
+#content h1 {
+    border-bottom: solid 1px #4297d7;
+    font-size: 30px;
+    color: #444
 }
 
 ul#list {
