@@ -32,6 +32,8 @@ G_DEFINE_TYPE (FileteaNode, filetea_node, EVD_TYPE_WEB_SERVICE)
 
 #define DEFAULT_SOURCE_ID_START_DEPTH 8
 
+#define PATH_ACTION_VIEW "view"
+
 #define FILETEA_ERROR_DOMAIN_STR "me.filetea.ErrorDomain"
 #define FILETEA_ERROR            g_quark_from_string (FILETEA_ERROR_DOMAIN_STR)
 
@@ -492,6 +494,30 @@ setup_new_transfer (FileteaNode       *self,
   g_hash_table_insert (self->priv->transfers, transfer->id, transfer);
 }
 
+static gchar *
+get_static_content_path (FileteaNode    *self,
+                         EvdHttpRequest *request)
+{
+  /* @TODO: detect type of user-agent (mobile vs. desktop), and locale,
+     then redirect to correponding html root. By now, only default. */
+
+  return g_strdup ("/default");
+}
+
+static gboolean
+user_agent_is_browser (const gchar *user_agent)
+{
+  const gchar *mozilla = "Mozilla";
+  const gchar *opera = "Opera";
+
+  /* @TODO: improves this detection in the future;
+     it is currently very naive. */
+
+  return
+    (g_strstr_len (user_agent, strlen (mozilla), mozilla) == user_agent) ||
+    (g_strstr_len (user_agent, strlen (opera), opera) == user_agent);
+}
+
 static gboolean
 handle_special_request (FileteaNode         *self,
                         EvdHttpConnection   *conn,
@@ -499,16 +525,11 @@ handle_special_request (FileteaNode         *self,
                         SoupURI             *uri,
                         gchar             **tokens)
 {
-  //  const gchar *realm;
   const gchar *id;
-  //  const gchar *action;
-  //  gboolean download;
+  const gchar *action;
 
-  //  realm = tokens[1];
   id = tokens[1];
-  //  action = tokens[2];
-
-  //  download = g_strcmp0 (action, PATH_ACTION_DOWNLOAD) == 0;
+  action = tokens[2];
 
   if (g_strcmp0 (evd_http_request_get_method (request), "PUT") == 0)
     {
@@ -530,25 +551,44 @@ handle_special_request (FileteaNode         *self,
       source = g_hash_table_lookup (self->priv->sources_by_id, id);
       if (source != NULL)
         {
-          /*
-          if (action == NULL || strlen (action) == 0)
+          SoupMessageHeaders *headers;
+          const gchar *user_agent;
+
+          headers = evd_http_message_get_headers (EVD_HTTP_MESSAGE (request));
+          user_agent = soup_message_headers_get_one (headers, "user-agent");
+
+          if ((action == NULL || (strlen (action) == 0)) &&
+              user_agent_is_browser (user_agent))
             {
               gchar *new_path;
+              gchar *static_content_path;
+              GError *error = NULL;
 
-              g_free (tokens[1]);
-              tokens[1] = NULL;
+              static_content_path = get_static_content_path (self, request);
 
-              g_free (tokens[2]);
-              tokens[2] = NULL;
+              new_path = g_strdup_printf ("%s/#%s", static_content_path, id);
 
-              new_path = g_strjoinv ("/", tokens);
-              soup_uri_set_path (uri, new_path);
+              g_free (static_content_path);
+
+              if (! evd_http_connection_redirect (conn, new_path, FALSE, &error))
+                {
+                  /* @TODO: do proper error logging */
+                  g_debug ("ERROR sending response to source: %s", error->message);
+                  g_error_free (error);
+                }
+
               g_free (new_path);
+
+              return TRUE;
             }
           else
-          */
             {
-              setup_new_transfer (self, source, conn, /*download*/ TRUE);
+              gboolean download;
+
+              download = g_strcmp0 (action, PATH_ACTION_VIEW) != 0;
+
+              setup_new_transfer (self, source, conn, download);
+
               return TRUE;
             }
         }
@@ -573,7 +613,7 @@ request_handler (EvdWebService     *web_service,
   tokens = g_strsplit (uri->path, "/", 16);
   tokens_len = g_strv_length (tokens);
 
-  if (tokens_len == 2 &&
+  if (tokens_len >= 2 &&
       handle_special_request (self, conn, request, uri, tokens))
     {
       /* @TODO: possibly, a request from a transfer endpoint */
@@ -585,11 +625,13 @@ request_handler (EvdWebService     *web_service,
     {
       gchar *new_path;
       GError *error = NULL;
+      gchar *static_content_path;
 
-      /* @TODO: detect type of user-agent (mobile vs. desktop), and locale,
-         then redirect to correponding html root. By now, only default. */
+      static_content_path = get_static_content_path (self, request);
 
-      new_path = g_strdup_printf ("/default%s", uri->path);
+      new_path = g_strdup_printf ("%s%s", static_content_path, uri->path);
+
+      g_free (static_content_path);
 
       /* redirect */
       if (! evd_http_connection_redirect (conn, new_path, FALSE, &error))

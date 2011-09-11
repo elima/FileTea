@@ -59,60 +59,6 @@ Evd.Object.extend (FragidNavigator.prototype, {
     }
 });
 
-// StateManager
-var StateManager = new Evd.Constructor ();
-StateManager.prototype = new Evd.Object ();
-
-StateManager.DEFAULT_STATE = "_default_";
-
-Evd.Object.extend (StateManager.prototype, {
-
-    _init: function (args) {
-        var self = this;
-
-        this._states = {};
-
-        this._defaultState = args.defaultState || StateManager.DEFAULT_STATE;
-
-        this._fragidNav = new FragidNavigator({ autoStart: false });
-        this._fragidNav.addEventListener ("change",
-            function (oldState, newState) {
-                self._onStateChanged (oldState, newState);
-            });
-    },
-
-    _onStateChanged: function (oldState, newState) {
-        if (newState == "")
-            newState = this._defaultState;
-
-        var oldS = this._states[oldState];
-        if (oldS && oldS.exitFunc)
-            oldS.enterFunc (oldState);
-
-        var newS = this._states[newState];
-        if (newS && newS.enterFunc)
-            newS.enterFunc (newState);
-    },
-
-    add: function (id, enterFunc, exitFunc) {
-        var s = {
-            id: id,
-            enterFunc: enterFunc,
-            exitFunc: exitFunc
-        };
-
-        this._states[id] = s;
-    },
-
-    start: function () {
-        this._fragidNav.start ();
-    },
-
-    setDefault: function (state) {
-        this._defaultState = state.toString();
-    }
-});
-
 // ContentManager
 var ContentManager = new Evd.Constructor ();
 ContentManager.prototype = new Evd.Object ();
@@ -121,56 +67,101 @@ Evd.Object.extend (ContentManager.prototype, {
 
     _init: function (args) {
         this._states = args["stateManager"];
+        this._fragidNav = args["fragidNav"];
+
+        var self = this;
+        this._fragidNav.addEventListener ("change",
+            function (oldState, newState) {
+                if (newState == "")
+                    newState = self._default;
+
+                self.open (newState);
+            });
 
         this._contents = {};
+
+        this.Mode = {
+            DYNAMIC:  0,
+            STATIC:   1,
+            VOLATILE: 2
+        };
     },
 
-    add: function (id, name, url, desc, content, options) {
-        if (! options)
-            options = {};
-
+    add: function (id, name, url, content, mode) {
         var c = {
             id: id,
             name: name,
             url: url,
-            desc: desc,
             content: content,
-            options: options
+            mode: mode !== undefined ? mode : this.Mode.DYNAMIC
         };
 
         this._contents[id] = c;
-
-        var self = this;
-        this._states.add (id,
-            function (id) {
-                self.open (id);
-            });
     },
 
     setDefault: function (id) {
-        this._states.setDefault (id);
+        this._default = id;
     },
 
     open: function (id) {
-        var c = this._contents[id];
-        if (! c)
-            return false;
-
         var self = this;
-        if (c.content == null && c.options["static"] !== true) {
-            self._fireEvent ("loading", [c.id, c.name, c.description]);
+
+        var c = this._contents[id];
+        if (! c) {
+            this._fireEvent ("add", [id, "Download"]);
+            this._fireEvent ("loading", [id]);
+
+            // @TODO: remove this from here; it belongs to a DownloadView widget
+            Ft.queryRemoteFile (id,
+                function (info, error) {
+                    if (error) {
+                        self.add (id,
+                                  "Download",
+                                  "not-found-view.html",
+                                  null,
+                                  self.Mode.VOLATILE);
+                        self.open (id);
+                    }
+                    else {
+                        jQuery.ajax ({
+                            url: "download-view.html",
+                            success: function (data, statusText) {
+                                self._fireEvent ("add", [id, "Download", data]);
+
+                                $ ("#download-view-name").html (info.name);
+                                $ ("#download-view-type").html (info.type);
+                                $ ("#download-view-size").html (info.size);
+                                $ ("#download-view-url").get(0).href =  info.url;
+
+                                self.add (id,
+                                          "Download",
+                                          "download-view.html",
+                                          document.getElementById ("download-view").innerHTML,
+                                          self.Mode.VOLATILE);
+                                self.open (id);
+                            }
+                        });
+                    }
+            });
+
+            return true;
+        }
+
+        if (c.content == null && c.mode != this.Mode.STATIC) {
+            self._fireEvent ("add", [c.id, c.name]);
+            self._fireEvent ("loading", [c.id]);
 
             jQuery.ajax ({
                 url: c.url,
                 success: function (data, statusText) {
                     c.content = data;
-                    self._fireEvent ("add", [c.id, c.name, c.desc, c.content]);
-                    self._fireEvent ("show", [c.id, c.name, c.desc, c.content]);
+                    self._fireEvent ("add", [c.id, c.name, c.content]);
+                    self._fireEvent ("show", [c.id, c.name]);
                 }
             });
         }
         else {
-            self._fireEvent ("show", [c.id, c.name, c.desc, c.content]);
+            self._fireEvent ("show", [c.id, c.name, c.content]);
         }
 
         return true;
@@ -181,7 +172,10 @@ Evd.Object.extend (ContentManager.prototype, {
         if (! c)
             return this;
 
-        c.content = null;
+        if (c.mode == this.Mode.DYNAMIC)
+            c.content = null;
+        else if (c.mode == this.Mode.VOLATILE)
+            delete (this._contents[id]);
 
         return this;
     }
@@ -391,12 +385,12 @@ var Ft = new (function () {
         this._jsonRpc.useTransport (this._transport);
     };
 
-    // state manager
-    this._states = new StateManager ();
+    // fragment identifier navigator
+    this._fragidNav = new FragidNavigator({ autoStart: false });
 
     // content manager
     this.content = new ContentManager ({
-        stateManager: this._states
+        fragidNav: this._fragidNav
     });
 
     // user interface manager
@@ -408,7 +402,7 @@ var Ft = new (function () {
 
             self._ux.addEventListener ("ready",
                 function () {
-                    self._states.start ();
+                    self._fragidNav.start ();
                 });
         });
 
@@ -431,6 +425,31 @@ var Ft = new (function () {
         this.removeEventListener ("registered", self._onFileRegistered);
     };
     this.files.addEventListener ("registered", this._onFileRegistered);
+
+    this.queryRemoteFile = function (id, callback) {
+        self._getRpc (function (rpc) {
+            rpc.callMethod ("getFileSourceInfo", [id],
+                function (result, error) {
+                    if (error) {
+                        callback (null, error);
+                    }
+                    else {
+                        var info = {
+                            name: result[0],
+                            type: result[1],
+                            size: result[2]
+                        };
+
+                        var a = document.createElement ("A");
+                        a.href = "/" + id + "/dl";
+
+                        info.url = a.href;
+
+                        callback (info, null);
+                    }
+                });
+            });
+    };
 
     window.addEventListener ("unload", function () {
         if (self._transport)

@@ -11,31 +11,32 @@ Evd.Object.extend (UxManager.prototype, {
 
         this._content = args.contentManager;
 
-        function getTab (id, name, desc) {
+        function getTab (id, name, index) {
             var div = document.getElementById (id);
             if (! div) {
                 div = document.createElement ("div");
                 div.id = id;
                 document.getElementById ("tabs").appendChild (div);
-                self._tabs.tabs ("add", "#" + id, name);
+                self._tabs.tabs ("add", "#" + id, name, index);
             }
 
             return div;
         }
 
         this._content.addEventListener ("add",
-            function (id, name, desc, content) {
-                var div = getTab (id, name, desc);
+            function (id, name, content, index) {
+                var div = getTab (id, name, index);
                 div.innerHTML = content;
             });
         this._content.addEventListener ("show",
-            function (id, name, desc, content) {
+            function (id, name) {
                 document.title = name + " - " + self._baseTitle;
                 self._tabs.tabs ("select", "#" + id);
             });
         this._content.addEventListener ("loading",
-            function (id, name, desc) {
-                var div = getTab (id, name, desc);
+            function (id) {
+                var div = document.getElementById (id);
+                self._tabs.tabs ("select", "#" + id);
                 div.innerHTML = '<div id="content-loading"></div>';
             });
 
