@@ -65,6 +65,12 @@ ContentManager.prototype = new Evd.Object ();
 
 Evd.Object.extend (ContentManager.prototype, {
 
+    Mode: {
+        DYNAMIC:  0,
+        STATIC:   1,
+        VOLATILE: 2
+    },
+
     _init: function (args) {
         this._states = args["stateManager"];
         this._fragidNav = args["fragidNav"];
@@ -80,11 +86,9 @@ Evd.Object.extend (ContentManager.prototype, {
 
         this._contents = {};
 
-        this.Mode = {
-            DYNAMIC:  0,
-            STATIC:   1,
-            VOLATILE: 2
-        };
+        require (["../common/utils"], function (Utils) {
+                     self._utils = Utils;
+                 });
     },
 
     add: function (id, name, url, content, mode) {
@@ -129,8 +133,10 @@ Evd.Object.extend (ContentManager.prototype, {
                                 self._fireEvent ("add", [id, "Download", data]);
 
                                 $ ("#download-view-name").html (info.name);
+                                if (! info.type)
+                                    info.type = "unknown";
                                 $ ("#download-view-type").html (info.type);
-                                $ ("#download-view-size").html (info.size);
+                                $ ("#download-view-size").html (self._utils.humanizeFileSize (info.size));
                                 $ ("#download-view-url").get(0).href =  info.url;
 
                                 self.add (id,

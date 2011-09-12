@@ -38,6 +38,10 @@ Evd.Object.extend (SharedFilesView.prototype, {
 
         // @TODO: check if browser supports file drag-and-drop
         this._setupFileDropZone (window.document);
+
+        require (["../common/utils"], function (Utils) {
+                     self._utils = Utils;
+                 });
     },
 
     _addButtonOnChange: function () {
@@ -69,8 +73,8 @@ Evd.Object.extend (SharedFilesView.prototype, {
 
         var id = file.id;
         var name = file.name;
-        var type = file.type;
-        var size = file.size;
+        var type = file.type != "" ? file.type : "unknown";
+        var size = this._utils.humanizeFileSize (file.size);
 
         var item = this._newContainer (this._parentElement,
                                        null,
