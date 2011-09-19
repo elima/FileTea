@@ -26,7 +26,7 @@ m4_define([prj_home],       [http://filetea.com])
 
 m4_define([prj_version_major], [0])
 m4_define([prj_version_minor], [1])
-m4_define([prj_version_micro], [4])
+m4_define([prj_version_micro], [5])
 
 m4_define([prj_version],
           [prj_version_major.prj_version_minor.prj_version_micro])
