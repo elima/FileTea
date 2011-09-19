@@ -58,6 +58,9 @@ struct _FileteaNodePrivate
   GHashTable *sources_by_id;
   GHashTable *sources_by_peer;
   GHashTable *transfers;
+
+  gboolean force_https;
+  guint https_port;
 };
 
 static void     filetea_node_class_init         (FileteaNodeClass *class);
@@ -157,6 +160,9 @@ filetea_node_init (FileteaNode *self)
                            g_str_equal,
                            NULL,
                            (GDestroyNotify) file_transfer_unref);
+
+  priv->force_https = FALSE;
+  priv->https_port = 0;
 }
 
 static void
@@ -610,6 +616,24 @@ request_handler (EvdWebService     *web_service,
 
   uri = evd_http_request_get_uri (request);
 
+  /* redirect to HTTPS service if forced in config */
+  if (self->priv->force_https &&
+      ! evd_connection_get_tls_active (EVD_CONNECTION (conn)))
+    {
+      gchar *new_uri;
+
+      soup_uri_set_scheme (uri, "https");
+      soup_uri_set_port (uri, self->priv->https_port);
+
+      new_uri = soup_uri_to_string (uri, FALSE);
+
+      evd_http_connection_redirect (conn, new_uri, FALSE, NULL);
+
+      g_free (new_uri);
+
+      return;
+    }
+
   tokens = g_strsplit (uri->path, "/", 16);
   tokens_len = g_strv_length (tokens);
 
@@ -844,6 +868,19 @@ load_config (FileteaNode *self, GKeyFile *config)
                                                  "node",
                                                  "max-bandwidth-out",
                                                  NULL));
+
+  /* force https? */
+  self->priv->force_https = g_key_file_get_boolean (config,
+                                                    "http",
+                                                    "force-https",
+                                                    NULL) == TRUE;
+  if (self->priv->force_https)
+    {
+      self->priv->https_port = g_key_file_get_integer (config,
+                                                       "https",
+                                                       "port",
+                                                       NULL);
+    }
 }
 
 /* public methods */
