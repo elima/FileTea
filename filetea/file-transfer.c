@@ -309,16 +309,20 @@ file_transfer_on_read (GObject      *obj,
 static void
 file_transfer_read (FileTransfer *self)
 {
+  GInputStream *stream;
+
+  stream = g_io_stream_get_input_stream (G_IO_STREAM (self->source_conn));
+
+  if (g_input_stream_has_pending (stream))
+    return;
+
   if (evd_connection_get_max_writable (EVD_CONNECTION (self->target_conn)) > 0)
     {
-      GInputStream *stream;
       gssize size;
 
       size = MIN (BLOCK_SIZE, self->source->file_size - self->transferred);
       if (size <= 0)
         return;
-
-      stream = g_io_stream_get_input_stream (G_IO_STREAM (self->source_conn));
 
       file_transfer_ref (self);
       g_input_stream_read_async (stream,
