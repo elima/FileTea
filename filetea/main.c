@@ -131,8 +131,6 @@ on_tls_certificate_loaded (GObject      *obj,
       if (setup_pending == 0)
         finish_setup ();
     }
-
-  g_object_unref (cred);
 }
 
 static gboolean
