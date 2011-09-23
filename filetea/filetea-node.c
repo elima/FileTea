@@ -61,6 +61,10 @@ struct _FileteaNodePrivate
 
   gboolean force_https;
   guint https_port;
+
+  gchar *log_filename;
+  GFileOutputStream *log_output_stream;
+  GQueue *log_queue;
 };
 
 static void     filetea_node_class_init         (FileteaNodeClass *class);
@@ -87,6 +91,10 @@ static void     rpc_on_method_called            (EvdJsonrpc  *jsonrpc,
                                                  guint        invocation_id,
                                                  gpointer     context,
                                                  gpointer     user_data);
+
+static void     web_dir_on_log_entry            (EvdWebService *service,
+                                                 const gchar   *entry,
+                                                 gpointer       user_data);
 
 static void
 filetea_node_class_init (FileteaNodeClass *class)
@@ -163,6 +171,10 @@ filetea_node_init (FileteaNode *self)
 
   priv->force_https = FALSE;
   priv->https_port = 0;
+
+  priv->log_filename = NULL;
+  priv->log_output_stream = NULL;
+  priv->log_queue = NULL;
 }
 
 static void
@@ -214,6 +226,23 @@ filetea_node_finalize (GObject *obj)
   g_object_unref (self->priv->transport);
   g_object_unref (self->priv->webdir);
   g_object_unref (self->priv->selector);
+
+  if (self->priv->log_queue != NULL)
+    {
+      while (g_queue_get_length (self->priv->log_queue) > 0)
+        {
+          gchar *entry;
+          entry = g_queue_pop_head (self->priv->log_queue);
+          g_free (entry);
+        }
+      g_queue_free (self->priv->log_queue);
+    }
+
+  if (self->priv->log_output_stream != NULL)
+    g_object_unref (self->priv->log_output_stream);
+
+  if (self->priv->log_filename != NULL)
+    g_free (self->priv->log_filename);
 
   G_OBJECT_CLASS (filetea_node_parent_class)->finalize (obj);
 }
@@ -844,6 +873,89 @@ set_max_node_bandwidth (FileteaNode *self,
 }
 
 static void
+web_dir_on_log_entry_written (GObject      *obj,
+                              GAsyncResult *res,
+                              gpointer      user_data)
+{
+  FileteaNode *self = FILETEA_NODE (user_data);
+  gchar *entry = user_data;
+  GError *error = NULL;
+
+  g_output_stream_write_finish (G_OUTPUT_STREAM (obj), res, &error);
+  if (error != NULL)
+    {
+      g_warning ("Failed to write to log file: %s", error->message);
+      g_error_free (error);
+    }
+
+  entry = g_queue_pop_head (self->priv->log_queue);
+  g_free (entry);
+
+  if (g_queue_get_length (self->priv->log_queue) > 0)
+    {
+      entry = g_queue_peek_head (self->priv->log_queue);
+      g_output_stream_write_async (G_OUTPUT_STREAM (self->priv->log_output_stream),
+                                   entry,
+                                   strlen (entry),
+                                   G_PRIORITY_DEFAULT,
+                                   NULL,
+                                   web_dir_on_log_entry_written,
+                                   self);
+    }
+}
+
+static void
+web_dir_on_log_entry (EvdWebService *service,
+                      const gchar   *entry,
+                      gpointer       user_data)
+{
+  FileteaNode *self = FILETEA_NODE (user_data);
+  gchar *copy;
+
+  copy = g_strdup_printf ("%s\n", entry);
+
+  g_queue_push_tail (self->priv->log_queue, copy);
+
+  if (! g_output_stream_has_pending (G_OUTPUT_STREAM (self->priv->log_output_stream)))
+    g_output_stream_write_async (G_OUTPUT_STREAM (self->priv->log_output_stream),
+                                 copy,
+                                 strlen (copy),
+                                 G_PRIORITY_DEFAULT,
+                                 NULL,
+                                 web_dir_on_log_entry_written,
+                                 self);
+}
+
+static void
+setup_web_dir_logging (FileteaNode *self)
+{
+  GError *error = NULL;
+  GFile *log_file;
+
+  log_file = g_file_new_for_path (self->priv->log_filename);
+
+  self->priv->log_output_stream = g_file_append_to (log_file,
+                                                    G_FILE_CREATE_NONE,
+                                                    NULL,
+                                                    &error);
+
+  if (error != NULL)
+    {
+      g_warning ("Failed open%s", error->message);
+      g_error_free (error);
+    }
+
+  self->priv->log_queue = g_queue_new ();
+
+  g_signal_connect (self->priv->webdir,
+                    "log-entry",
+                    G_CALLBACK (web_dir_on_log_entry),
+                    self);
+
+  g_object_unref (log_file);
+}
+
+static void
 load_config (FileteaNode *self, GKeyFile *config)
 {
   /* source id start depth */
@@ -881,6 +993,14 @@ load_config (FileteaNode *self, GKeyFile *config)
                                                        "port",
                                                        NULL);
     }
+
+  /* log file */
+  self->priv->log_filename = g_key_file_get_string (config,
+                                                    "log",
+                                                    "http-log-file",
+                                                    NULL);
+  if (self->priv->log_filename != NULL)
+    setup_web_dir_logging (self);
 }
 
 /* public methods */
