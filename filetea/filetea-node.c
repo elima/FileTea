@@ -381,8 +381,8 @@ remove_file_sources (FileteaNode *self, JsonNode *ids, gboolean abort_transfers)
       item = json_array_get_element (a, i);
       id = json_node_get_string (item);
 
-      source = g_hash_table_lookup (self->priv->sources_by_id, id);
-      if (source != NULL)
+      if (id != NULL &&
+          (source = g_hash_table_lookup (self->priv->sources_by_id, id)) != NULL)
         {
           GHashTable *sources_of_peer;
 
