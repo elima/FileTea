@@ -20,23 +20,39 @@
   <!-- FileTea -->
   <script type="text/javascript" src="../common/fileTea.js"></script>
 
+  <!-- ContentManager -->
+  <script type="text/javascript" src="../common/contentManager.js"></script>
+
+  <!-- Ux -->
+  <script type="text/javascript" src="ux.js"></script>
+
   <script type="text/javascript">
 
 $ (function () {
-    var $tabs = $ ("#tabs");
+    var content = new ContentManager ();
 
-    Ft.content.add ("shared-files",
-                    "Share files",
-                    null,
-                    null,
-                    Ft.content.Mode.STATIC);
-    Ft.content.add ("privacy-policy",
-                    "Privacy policy",
-                    "../common/privacy-policy.html",
-                    null,
-                    Ft.content.Mode.DYNAMIC);
+    content.add ("shared-files",
+                 "Share files",
+                 "../default/shared-files-view.html",
+                 null,
+                 content.Mode.STATIC);
+    content.add ("transfers",
+                 "Transfers",
+                 null,
+                 null,
+                 content.Mode.STATIC);
+    content.add ("privacy-policy",
+                 "Privacy policy",
+                 "../common/privacy-policy.html",
+                 null,
+                 content.Mode.DYNAMIC);
 
-    Ft.content.setDefault ("shared-files");
+    content.setDefault ("shared-files");
+
+    var ux = new UxManager ({
+        contentManager: content,
+        transferManager: Ft.transfers
+    });
 });
 
   </script>
