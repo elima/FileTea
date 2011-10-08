@@ -248,7 +248,7 @@ Evd.Object.extend (FileSources.prototype, {
         var file;
         for (var i = 0; i < unregFiles.length; i++) {
             file = unregFiles[i];
-            args.push ([file.name, file.type, file.size]);
+            args.push ([escape (file.name), file.type, file.size]);
             file.status = SourceStatus.REGISTERING;
         }
 
@@ -441,7 +441,7 @@ var Ft = new (function () {
                     }
                     else {
                         var info = {
-                            name: result[0],
+                            name: unescape (result[0]),
                             type: result[1],
                             size: result[2]
                         };

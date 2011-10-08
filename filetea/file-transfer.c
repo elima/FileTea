@@ -187,8 +187,11 @@ file_transfer_start (FileTransfer *self)
   if (self->download)
     {
       gchar *st;
+      gchar *decoded_file_name;
 
-      st = g_strdup_printf ("attachment; filename=%s", self->source->file_name);
+      decoded_file_name = soup_uri_decode (self->source->file_name);
+      st = g_strdup_printf ("attachment; filename=\"%s\"", decoded_file_name);
+      g_free (decoded_file_name);
       soup_message_headers_replace (headers, "Content-disposition", st);
       g_free (st);
     }
