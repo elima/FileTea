@@ -344,11 +344,13 @@ var Ft = new (function () {
     this._transport = null;
     this._peer = null;
     this._jsonRpc = null;
+    this._getRpcCallbacks = [];
 
     this._getRpc = function (callback) {
         if (self._jsonRpc != null)
             callback (self._jsonRpc, null);
 
+        self._getRpcCallbacks.push (callback);
 
         if (self._transport == null) {
             self._transport = new Evd.WebTransport ();
@@ -361,7 +363,9 @@ var Ft = new (function () {
                         require (["/transport/evdJsonrpc.js"],
                                  function () {
                                      self._setupRpc ();
-                                     callback (self._jsonRpc, null);
+                                     for (var i in self._getRpcCallbacks)
+                                         self._getRpcCallbacks[i] (self._jsonRpc, null);
+                                     self._getRpcCallbacks = [];
                                  });
                     }
                     else {
