@@ -18,4 +18,8 @@ else
         ACLOCAL="${ACLOCAL-aclocal} $ACLOCAL_FLAGS" autoreconf -v --install || exit $?
 fi
 
-./configure "$@"
+if test x$NOCONFIGURE = x; then
+        ./configure "$@"
+else
+        echo Skipping configure process.
+fi
