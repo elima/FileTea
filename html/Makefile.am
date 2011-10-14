@@ -1,6 +1,8 @@
 MAINTAINERCLEANFILES = \
 	Makefile.in
 
+EXTRA_DIST = default common
+
 htmldatadir = $(datadir)/filetea
 
 install: default

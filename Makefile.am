@@ -7,7 +7,8 @@ DIST_SUBDIRS = \
 	html
 
 EXTRA_DIST = \
-	autogen.sh
+	autogen.sh \
+	sample-filetea.conf
 
 CLEANFILES = *~
 

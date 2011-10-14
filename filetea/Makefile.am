@@ -29,4 +29,4 @@ source_h = \
 
 filetea_SOURCES = \
 	main.c \
-	$(source_c)
+	$(source_c) $(source_h)
