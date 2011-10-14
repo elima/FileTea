@@ -4,5 +4,6 @@ MAINTAINERCLEANFILES = \
 htmldatadir = $(datadir)/filetea
 
 install: default
-	cp -r ./default/ $(htmldatadir)/
-	cp -r ./common/ $(htmldatadir)/
+	$(INSTALL) -d $(DESTDIR)/$(htmldatadir)
+	cp -r ./default/ $(DESTDIR)/$(htmldatadir)
+	cp -r ./common/ $(DESTDIR)/$(htmldatadir)
