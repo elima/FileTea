@@ -41,9 +41,33 @@ function humanizeFileSize (size) {
     return Math.round (d[0] * 10) / 10 + " " + d[1];
 }
 
+function humanizeTime (seconds) {
+    var st = "";
+
+    if (seconds > DAY) {
+        st += Math.floor (seconds / DAY) + "d ";
+        seconds = seconds % DAY;
+    }
+
+    if (seconds > HOUR) {
+        st += Math.floor (seconds / HOUR) + "h ";
+        seconds = seconds % HOUR;
+    }
+
+    if (seconds > MIN) {
+        st += Math.floor (seconds / MIN) + "m ";
+        seconds = seconds % MIN;
+    }
+
+    st += Math.ceil (seconds) + "s";
+
+    return st;
+}
+
 if (exports == undefined)
     var exports = {};
 
 exports.humanizeFileSize = humanizeFileSize;
+exports.humanizeTime = humanizeTime;
 
 define (exports);
