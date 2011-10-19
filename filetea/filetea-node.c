@@ -57,7 +57,7 @@ struct _FileteaNodePrivate
 
   GHashTable *sources_by_id;
   GHashTable *sources_by_peer;
-  GHashTable *transfers;
+  GHashTable *transfers_by_id;
 
   gboolean force_https;
   guint https_port;
@@ -163,7 +163,7 @@ filetea_node_init (FileteaNode *self)
                            (GDestroyNotify) g_hash_table_unref);
 
   /* hash tables for indexing file transfers */
-  self->priv->transfers =
+  self->priv->transfers_by_id =
     g_hash_table_new_full (g_str_hash,
                            g_str_equal,
                            NULL,
@@ -206,10 +206,10 @@ filetea_node_dispose (GObject *obj)
       self->priv->sources_by_peer = NULL;
     }
 
-  if (self->priv->transfers != NULL)
+  if (self->priv->transfers_by_id != NULL)
     {
-      g_hash_table_unref (self->priv->transfers);
-      self->priv->transfers = NULL;
+      g_hash_table_unref (self->priv->transfers_by_id);
+      self->priv->transfers_by_id = NULL;
     }
 
   G_OBJECT_CLASS (filetea_node_parent_class)->dispose (obj);
@@ -483,7 +483,7 @@ on_transfer_finished (GObject      *obj,
                transfer->source->file_name);
     }
 
-  g_hash_table_remove (self->priv->transfers, transfer->id);
+  g_hash_table_remove (self->priv->transfers_by_id, transfer->id);
 }
 
 static void
@@ -526,7 +526,7 @@ setup_new_transfer (FileteaNode       *self,
   json_array_unref (arr);
   json_node_free (params);
 
-  g_hash_table_insert (self->priv->transfers, transfer->id, transfer);
+  g_hash_table_insert (self->priv->transfers_by_id, transfer->id, transfer);
 }
 
 static gchar *
@@ -570,7 +570,7 @@ handle_special_request (FileteaNode         *self,
     {
       FileTransfer *transfer;
 
-      transfer = g_hash_table_lookup (self->priv->transfers, id);
+      transfer = g_hash_table_lookup (self->priv->transfers_by_id, id);
       if (transfer != NULL)
         {
           file_transfer_set_source_conn (transfer, conn);
