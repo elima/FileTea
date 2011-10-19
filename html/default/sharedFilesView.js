@@ -36,12 +36,12 @@ Evd.Object.extend (SharedFilesView.prototype, {
 
         $ ("#share-files-btn").button ();
 
-        // @TODO: check if browser supports file drag-and-drop
-        this._setupFileDropZone (window.document);
-
         require (["../common/utils"], function (Utils) {
                      self._utils = Utils;
                  });
+
+        // @TODO: check if browser supports file drag-and-drop
+        this._setupFileDropZone (window.document);
     },
 
     _addButtonOnChange: function () {
