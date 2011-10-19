@@ -19,18 +19,22 @@
  * for more details.
  */
 
-function humanizeFileSize (size) {
-    var gig = Math.pow (10, 9);
-    var meg = Math.pow (10,6);
-    var kb = 1024;
+var KB = 1024;
+var MB = KB * 1024;
+var GB = MB * 1024;
 
+var MIN = 60;
+var HOUR = MIN * 60;
+var DAY = HOUR * 24;
+
+function humanizeFileSize (size) {
     var d;
-    if (size >= gig)
-        d = [size / gig, "GB"];
-    else if (size >= meg)
-        d = [size / meg, "MB"];
-    else if (size > kb)
-        d = [size / kb, "KB"];
+    if (size >= GB)
+        d = [size / GB, "GB"];
+    else if (size >= MB)
+        d = [size / MB, "MB"];
+    else if (size > KB)
+        d = [size / KB, "KB"];
     else
         return size + " bytes";
 
