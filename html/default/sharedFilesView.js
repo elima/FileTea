@@ -105,11 +105,8 @@ Evd.Object.extend (SharedFilesView.prototype, {
             item.urlEl.innerHTML = "<img src='../common/loading.gif'>";
         }
 
-        item.delEl = document.createElement ("img");
-        item.delEl.src = "../common/delete.png";
-        item.delEl.className = "shared-file-del-btn";
-        item.appendChild (item.delEl);
-        item.delEl.title = "Unshare file " + name;
+        item.delEl = this._newContainer (item, "", "shared-file-del-btn");
+        item.delEl.title = "Unshare file '" + name + "'";
         item.delEl.onclick = function (e) {
             self.remove (id);
         };
