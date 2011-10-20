@@ -80,7 +80,7 @@ file_source_ref (FileSource *self)
   g_return_val_if_fail (self != NULL, NULL);
   g_return_val_if_fail (self->ref_count > 0, NULL);
 
-  g_atomic_int_exchange_and_add (&self->ref_count, 1);
+  g_atomic_int_add (&self->ref_count, 1);
 
   return self;
 }
