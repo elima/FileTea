@@ -412,6 +412,16 @@ file_transfer_finish (FileTransfer  *self,
 }
 
 void
+file_transfer_set_target_peer (FileTransfer *self, EvdPeer *peer)
+{
+  g_return_if_fail (self != NULL);
+  g_return_if_fail (EVD_IS_PEER (peer));
+
+  self->target_peer = peer;
+  g_object_ref (peer);
+}
+
+void
 file_transfer_get_status (FileTransfer *self,
                           guint        *status,
                           gsize        *transferred,
