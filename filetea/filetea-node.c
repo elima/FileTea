@@ -486,7 +486,7 @@ on_transfer_finished (GObject      *obj,
   g_hash_table_remove (self->priv->transfers_by_id, transfer->id);
 }
 
-static void
+static FileTransfer *
 setup_new_transfer (FileteaNode       *self,
                     FileSource        *source,
                     EvdHttpConnection *conn,
@@ -527,6 +527,8 @@ setup_new_transfer (FileteaNode       *self,
   json_node_free (params);
 
   g_hash_table_insert (self->priv->transfers_by_id, transfer->id, transfer);
+
+  return transfer;
 }
 
 static gchar *
@@ -619,10 +621,21 @@ handle_special_request (FileteaNode         *self,
           else
             {
               gboolean download;
+              FileTransfer *transfer;
 
               download = g_strcmp0 (action, PATH_ACTION_VIEW) != 0;
 
-              setup_new_transfer (self, source, conn, download);
+              transfer = setup_new_transfer (self, source, conn, download);
+
+              if (uri->query != NULL)
+                {
+                  EvdPeer *peer;
+
+                  peer = evd_transport_lookup_peer (EVD_TRANSPORT (self->priv->transport),
+                                                    uri->query);
+                  if (peer != NULL)
+                    file_transfer_set_target_peer (transfer, peer);
+                }
 
               return TRUE;
             }
