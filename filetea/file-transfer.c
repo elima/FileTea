@@ -452,3 +452,21 @@ file_transfer_get_status (FileTransfer *self,
         }
     }
 }
+
+void
+file_transfer_cancel (FileTransfer *self)
+{
+  g_return_if_fail (self != NULL);
+
+  if (self->result == NULL)
+    return;
+
+  g_simple_async_result_set_error (self->result,
+                                   G_IO_ERROR,
+                                   G_IO_ERROR_CANCELLED,
+                                   "Transfer cancelled");
+
+  self->status = FILE_TRANSFER_STATUS_SOURCE_ABORTED;
+
+  file_transfer_complete (self);
+}

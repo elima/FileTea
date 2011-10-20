@@ -82,4 +82,6 @@ void           file_transfer_get_status      (FileTransfer *self,
                                               gsize        *transferred,
                                               gdouble      *bandwidth);
 
+void           file_transfer_cancel          (FileTransfer *self);
+
 #endif
