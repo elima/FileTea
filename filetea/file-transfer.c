@@ -48,7 +48,6 @@ file_transfer_new (const gchar         *id,
 
   self = g_slice_new0 (FileTransfer);
   self->ref_count = 1;
-  self->report_interval = 1;
 
   self->download = download;
 
@@ -232,7 +231,6 @@ file_transfer_on_read (GObject      *obj,
   FileTransfer *self = user_data;
   gssize size;
   GError *error = NULL;
-  time_t current_time;
   EvdStreamThrottle *throttle;
 
   size = g_input_stream_read_finish (G_INPUT_STREAM (obj), res, &error);
@@ -256,26 +254,6 @@ file_transfer_on_read (GObject      *obj,
 
   self->transferred += size;
 
-  /* report bandwidth to source */
-  if (self->report_cb != NULL)
-    {
-      current_time = time (NULL);
-      if (current_time - self->report_last_time >= self->report_interval)
-        {
-          EvdStreamThrottle *throttle;
-          gdouble completed;
-          gdouble bandwidth;
-
-          self->report_last_time = current_time;
-
-          completed = ((gdouble) self->transferred / (gdouble) self->source->file_size) * 100;
-
-          throttle = evd_connection_get_input_throttle (EVD_CONNECTION (self->source_conn));
-          bandwidth = evd_stream_throttle_get_actual_bandwidth (throttle);
-
-          self->report_cb (self, completed, bandwidth, self->report_cb_user_data);
-        }
-    }
   throttle =
     evd_connection_get_input_throttle (EVD_CONNECTION (self->target_conn));
   self->bandwidth = evd_stream_throttle_get_actual_bandwidth (throttle);

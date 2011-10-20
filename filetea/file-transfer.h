@@ -30,11 +30,6 @@
 
 typedef struct _FileTransfer FileTransfer;
 
-typedef void (* FileTransferReportCb) (FileTransfer *self,
-                                       gdouble       perc_completed,
-                                       gdouble       bandwidth,
-                                       gpointer      user_data);
-
 struct _FileTransfer
 {
   gchar *id;
@@ -49,11 +44,6 @@ struct _FileTransfer
   GSimpleAsyncResult *result;
   gint ref_count;
   gboolean download;
-
-  guint report_interval;
-  time_t report_last_time;
-  FileTransferReportCb report_cb;
-  gpointer report_cb_user_data;
 };
 
 typedef enum
