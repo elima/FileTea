@@ -389,7 +389,7 @@ file_transfer_complete (FileTransfer *self)
   /* notify transfer completed */
   file_transfer_ref (self);
 
-  g_simple_async_result_complete (self->result);
+  g_simple_async_result_complete_in_idle (self->result);
   g_object_unref (self->result);
   self->result = NULL;
 
