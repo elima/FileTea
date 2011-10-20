@@ -129,10 +129,6 @@ file_transfer_on_target_closed (EvdHttpConnection *conn, gpointer user_data)
                                    G_IO_ERROR_CLOSED,
                                    "Target connection dropped");
 
-  if (self->source_conn != NULL)
-    g_signal_handlers_disconnect_by_func (self->source_conn,
-                                          file_transfer_on_source_closed,
-                                          self);
   self->status = FILE_TRANSFER_STATUS_TARGET_ABORTED;
 
   file_transfer_complete (self);
@@ -148,9 +144,6 @@ file_transfer_on_source_closed (EvdHttpConnection *conn, gpointer user_data)
                                    G_IO_ERROR_CLOSED,
                                    "Source connection dropped");
 
-  g_signal_handlers_disconnect_by_func (self->target_conn,
-                                        file_transfer_on_target_closed,
-                                        self);
   self->status = FILE_TRANSFER_STATUS_SOURCE_ABORTED;
 
   file_transfer_complete (self);
@@ -395,14 +388,21 @@ file_transfer_flush_target (FileTransfer *self)
 static void
 file_transfer_complete (FileTransfer *self)
 {
-  if (! g_io_stream_is_closed (G_IO_STREAM (self->target_conn)))
-    g_io_stream_close (G_IO_STREAM (self->target_conn), NULL, NULL);
-
-  if (self->source_conn != NULL)
+  g_signal_handlers_disconnect_by_func (self->target_conn,
+                                        file_transfer_on_target_closed,
+                                        self);
+  if (self->source_conn)
     {
+      g_signal_handlers_disconnect_by_func (self->source_conn,
+                                            file_transfer_on_source_closed,
+                                            self);
+
       if (! g_io_stream_is_closed (G_IO_STREAM (self->source_conn)))
         g_io_stream_close (G_IO_STREAM (self->source_conn), NULL, NULL);
     }
+
+  if (! g_io_stream_is_closed (G_IO_STREAM (self->target_conn)))
+    g_io_stream_close (G_IO_STREAM (self->target_conn), NULL, NULL);
 
   /* notify transfer completed */
   file_transfer_ref (self);
