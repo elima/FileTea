@@ -939,10 +939,13 @@ setup_web_dir_logging (FileteaNode *self)
                                                     NULL,
                                                     &error);
 
-  if (error != NULL)
+  if (self->priv->log_output_stream == NULL)
     {
-      g_warning ("Failed open%s", error->message);
+      g_warning ("Failed opening log file: %s. (HTTP logs disabled)",
+                 error->message);
       g_error_free (error);
+
+      return;
     }
 
   self->priv->log_queue = g_queue_new ();
@@ -999,7 +1002,7 @@ load_config (FileteaNode *self, GKeyFile *config)
                                                     "log",
                                                     "http-log-file",
                                                     NULL);
-  if (self->priv->log_filename != NULL)
+  if (self->priv->log_filename != NULL && self->priv->log_filename[0] != '\0')
     setup_web_dir_logging (self);
 }
 
