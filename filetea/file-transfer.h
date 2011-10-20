@@ -56,20 +56,20 @@ typedef enum
   FILE_TRANSFER_STATUS_TARGET_ABORTED
 } FileTransferStatus;
 
-FileTransfer * file_transfer_new          (const gchar         *id,
-                                           FileSource          *source,
-                                           EvdHttpConnection   *conn,
-                                           gboolean             download,
-                                           GAsyncReadyCallback  callback,
-                                           gpointer             user_data);
+FileTransfer * file_transfer_new             (const gchar         *id,
+                                              FileSource          *source,
+                                              EvdHttpConnection   *conn,
+                                              gboolean             download,
+                                              GAsyncReadyCallback  callback,
+                                              gpointer             user_data);
 
-FileTransfer * file_transfer_ref          (FileTransfer *self);
-void           file_transfer_unref        (FileTransfer *self);
+FileTransfer * file_transfer_ref             (FileTransfer *self);
+void           file_transfer_unref           (FileTransfer *self);
 
-void           file_transfer_start        (FileTransfer *self);
-gboolean       file_transfer_finish       (FileTransfer  *self,
-                                           GAsyncResult  *result,
-                                           GError       **error);
+void           file_transfer_start           (FileTransfer *self);
+gboolean       file_transfer_finish          (FileTransfer  *self,
+                                              GAsyncResult  *result,
+                                              GError       **error);
 
 void           file_transfer_set_source_conn (FileTransfer      *self,
                                               EvdHttpConnection *conn);
