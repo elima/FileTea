@@ -68,6 +68,8 @@ file_transfer_new (const gchar         *id,
 
   self->id = g_strdup (id);
 
+  self->status = FILE_TRANSFER_STATUS_NOT_STARTED;
+
   return self;
 }
 
@@ -131,6 +133,7 @@ file_transfer_on_target_closed (EvdHttpConnection *conn, gpointer user_data)
     g_signal_handlers_disconnect_by_func (self->source_conn,
                                           file_transfer_on_source_closed,
                                           self);
+  self->status = FILE_TRANSFER_STATUS_TARGET_ABORTED;
 
   file_transfer_complete (self);
 }
@@ -148,6 +151,7 @@ file_transfer_on_source_closed (EvdHttpConnection *conn, gpointer user_data)
   g_signal_handlers_disconnect_by_func (self->target_conn,
                                         file_transfer_on_target_closed,
                                         self);
+  self->status = FILE_TRANSFER_STATUS_SOURCE_ABORTED;
 
   file_transfer_complete (self);
 }
@@ -218,6 +222,8 @@ file_transfer_start (FileTransfer *self)
                         "write",
                         G_CALLBACK (file_transfer_on_target_can_write),
                         self);
+
+      self->status = FILE_TRANSFER_STATUS_ACTIVE;
 
       file_transfer_read (self);
     }
@@ -359,6 +365,8 @@ file_transfer_on_target_flushed (GObject      *obj,
   g_signal_handlers_disconnect_by_func (self->target_conn,
                                         file_transfer_on_target_can_write,
                                         self);
+
+  self->status = FILE_TRANSFER_STATUS_COMPLETED;
 
   file_transfer_complete (self);
 

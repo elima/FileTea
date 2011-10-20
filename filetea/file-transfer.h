@@ -55,6 +55,16 @@ struct _FileTransfer
   gpointer report_cb_user_data;
 };
 
+typedef enum
+{
+  FILE_TRANSFER_STATUS_NOT_STARTED,
+  FILE_TRANSFER_STATUS_ACTIVE,
+  FILE_TRANSFER_STATUS_PAUSED,
+  FILE_TRANSFER_STATUS_COMPLETED,
+  FILE_TRANSFER_STATUS_SOURCE_ABORTED,
+  FILE_TRANSFER_STATUS_TARGET_ABORTED
+} FileTransferStatus;
+
 FileTransfer * file_transfer_new          (const gchar         *id,
                                            FileSource          *source,
                                            EvdHttpConnection   *conn,
