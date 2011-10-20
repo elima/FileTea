@@ -233,6 +233,7 @@ file_transfer_on_read (GObject      *obj,
   gssize size;
   GError *error = NULL;
   time_t current_time;
+  EvdStreamThrottle *throttle;
 
   size = g_input_stream_read_finish (G_INPUT_STREAM (obj), res, &error);
   if (size < 0)
@@ -275,6 +276,9 @@ file_transfer_on_read (GObject      *obj,
           self->report_cb (self, completed, bandwidth, self->report_cb_user_data);
         }
     }
+  throttle =
+    evd_connection_get_input_throttle (EVD_CONNECTION (self->target_conn));
+  self->bandwidth = evd_stream_throttle_get_actual_bandwidth (throttle);
 
   g_assert (self->transferred <= self->source->file_size);
   if (self->transferred == self->source->file_size)

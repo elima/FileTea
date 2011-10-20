@@ -45,6 +45,7 @@ struct _FileTransfer
   guint status;
   gchar *buf;
   gsize transferred;
+  gdouble bandwidth;
   GSimpleAsyncResult *result;
   gint ref_count;
   gboolean download;
