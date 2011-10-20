@@ -410,3 +410,35 @@ file_transfer_finish (FileTransfer  *self,
   return ! g_simple_async_result_propagate_error (G_SIMPLE_ASYNC_RESULT (result),
                                                   error);
 }
+
+void
+file_transfer_get_status (FileTransfer *self,
+                          guint        *status,
+                          gsize        *transferred,
+                          gdouble      *bandwidth)
+{
+  g_return_if_fail (self != NULL);
+
+  if (status != NULL)
+    *status = self->status;
+
+  if (transferred != NULL)
+    *transferred = self->transferred;
+
+  if (bandwidth != NULL)
+    {
+      if (self->source_conn != NULL)
+        {
+          EvdStreamThrottle *throttle;
+
+          throttle =
+            evd_connection_get_input_throttle (EVD_CONNECTION (self->source_conn));
+
+          *bandwidth = evd_stream_throttle_get_actual_bandwidth (throttle);
+        }
+      else
+        {
+          *bandwidth = 0;
+        }
+    }
+}

@@ -74,4 +74,9 @@ gboolean       file_transfer_finish       (FileTransfer  *self,
 void           file_transfer_set_source_conn (FileTransfer      *self,
                                               EvdHttpConnection *conn);
 
+void           file_transfer_get_status      (FileTransfer *self,
+                                              guint        *status,
+                                              gsize        *transferred,
+                                              gdouble      *bandwidth);
+
 #endif
