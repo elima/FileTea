@@ -60,6 +60,8 @@ struct _FileteaNodePrivate
   GHashTable *transfers_by_id;
   GHashTable *transfers_by_peer;
 
+  guint report_transfers_src_id;
+
   gboolean force_https;
   guint https_port;
 
@@ -175,6 +177,8 @@ filetea_node_init (FileteaNode *self)
                            g_direct_equal,
                            NULL,
                            (GDestroyNotify) g_queue_free);
+
+  priv->report_transfers_src_id = 0;
 
   priv->force_https = FALSE;
   priv->https_port = 0;
@@ -505,6 +509,46 @@ unbind_transfer_from_peer (FileteaNode *self, EvdPeer *peer, FileTransfer *trans
 }
 
 static void
+report_transfer_finished (FileteaNode *self, FileTransfer *transfer)
+{
+  JsonNode *node;
+  JsonArray *args;
+  guint status;
+  gboolean notification_result;
+
+  file_transfer_get_status (transfer, &status, NULL, NULL);
+
+  node = json_node_new (JSON_NODE_ARRAY);
+  args = json_array_new ();
+  json_node_set_array (node, args);
+
+  json_array_add_string_element (args, transfer->id);
+  json_array_add_int_element (args, status);
+
+  notification_result =
+    evd_jsonrpc_send_notification (self->priv->rpc,
+                                   "transfer-finished",
+                                   node,
+                                   transfer->source->peer,
+                                   NULL);
+  g_assert (notification_result);
+
+  if (transfer->target_peer != NULL)
+    {
+      notification_result =
+        evd_jsonrpc_send_notification (self->priv->rpc,
+                                       "transfer-finished",
+                                       node,
+                                       transfer->target_peer,
+                                       NULL);
+      g_assert (notification_result);
+    }
+
+  json_array_unref (args);
+  json_node_free (node);
+}
+
+static void
 on_transfer_finished (GObject      *obj,
                       GAsyncResult *res,
                       gpointer      user_data)
@@ -526,11 +570,91 @@ on_transfer_finished (GObject      *obj,
                transfer->source->file_name);
     }
 
+  report_transfer_finished (self, transfer);
+
   unbind_transfer_from_peer (self, transfer->source->peer, transfer);
   if (transfer->target_peer != NULL)
     unbind_transfer_from_peer (self, transfer->target_peer, transfer);
 
+  if (self->priv->report_transfers_src_id != 0 &&
+      g_hash_table_size (self->priv->transfers_by_peer) == 0)
+    {
+      g_source_remove (self->priv->report_transfers_src_id);
+      self->priv->report_transfers_src_id = 0;
+    }
+
   g_hash_table_remove (self->priv->transfers_by_id, transfer->id);
+}
+
+static void
+report_transfer_status (gpointer data, gpointer user_data)
+{
+  FileTransfer *transfer = data;
+  JsonArray *args = user_data;
+  guint status;
+  gsize transferred;
+  gdouble bandwidth;
+
+  file_transfer_get_status (transfer, &status, &transferred, &bandwidth);
+
+  if (status == FILE_TRANSFER_STATUS_ACTIVE)
+    {
+      JsonObject *obj;
+
+      obj = json_object_new ();
+
+      json_object_set_string_member (obj, "id", transfer->id);
+      json_object_set_int_member (obj, "status", status);
+      json_object_set_int_member (obj, "transferred", transferred);
+      json_object_set_int_member (obj, "bandwidth", bandwidth);
+
+      json_array_add_object_element (args, obj);
+    }
+}
+
+static gboolean
+report_transfers_status (gpointer user_data)
+{
+  FileteaNode *self = FILETEA_NODE (user_data);
+  GHashTableIter iter;
+  gpointer key, value;
+
+  self->priv->report_transfers_src_id = 0;
+
+  g_hash_table_iter_init (&iter, self->priv->transfers_by_peer);
+  while (g_hash_table_iter_next (&iter, &key, &value))
+    {
+      EvdPeer *peer = EVD_PEER (key);
+      GQueue *transfers = value;
+      JsonNode *node;
+      JsonArray *args;
+
+      g_assert (g_queue_get_length (transfers) > 0);
+
+      node = json_node_new (JSON_NODE_ARRAY);
+      args = json_array_new ();
+      json_node_set_array (node, args);
+
+      g_queue_foreach (transfers, report_transfer_status, args);
+
+      if (json_array_get_length (args) > 0)
+        {
+          gboolean notification_result;
+
+          notification_result =
+            evd_jsonrpc_send_notification (self->priv->rpc,
+                                           "transfer-status",
+                                           node,
+                                           peer,
+                                           NULL);
+          g_assert (notification_result);
+        }
+
+      json_array_unref (args);
+      json_node_free (node);
+    }
+
+  return g_hash_table_size (self->priv->transfers_by_peer) > 0;
 }
 
 static FileTransfer *
@@ -576,6 +700,13 @@ setup_new_transfer (FileteaNode       *self,
   g_hash_table_insert (self->priv->transfers_by_id, transfer->id, transfer);
 
   bind_transfer_to_peer (self, transfer->source->peer, transfer);
+
+  if (self->priv->report_transfers_src_id == 0)
+    self->priv->report_transfers_src_id = evd_timeout_add (NULL,
+                                                           1000,
+                                                           G_PRIORITY_DEFAULT,
+                                                           report_transfers_status,
+                                                           self);
 
   return transfer;
 }
@@ -624,6 +755,10 @@ handle_special_request (FileteaNode         *self,
       transfer = g_hash_table_lookup (self->priv->transfers_by_id, id);
       if (transfer != NULL)
         {
+          JsonNode *node;
+          JsonArray *args;
+          gboolean notification_result;
+
           file_transfer_set_source_conn (transfer, conn);
           file_transfer_start (transfer);
 
@@ -631,6 +766,27 @@ handle_special_request (FileteaNode         *self,
               ! evd_peer_is_closed (transfer->target_peer))
             {
               bind_transfer_to_peer (self, transfer->target_peer, transfer);
+
+              node = json_node_new (JSON_NODE_ARRAY);
+              args = json_array_new ();
+              json_node_set_array (node, args);
+
+              json_array_add_string_element (args, transfer->id);
+              json_array_add_string_element (args, transfer->source->file_name);
+              json_array_add_int_element (args, transfer->source->file_size);
+              json_array_add_boolean_element (args, TRUE);
+
+              /* notify target */
+              notification_result =
+                evd_jsonrpc_send_notification (self->priv->rpc,
+                                               "transfer-started",
+                                               node,
+                                               transfer->target_peer,
+                                               NULL);
+              g_assert (notification_result);
+
+              json_array_unref (args);
+              json_node_free (node);
             }
 
           return TRUE;
