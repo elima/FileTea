@@ -1014,6 +1014,26 @@ rpc_on_method_called (EvdJsonrpc  *jsonrpc,
                        "No source file with id '%s'", id);
         }
     }
+  else if (g_strcmp0 (method_name, "cancelTransfer") == 0)
+    {
+      const gchar *id;
+      FileTransfer *transfer;
+      gint i;
+
+      for (i=0; i<json_array_get_length (a); i++)
+        {
+          id = json_array_get_string_element (a, i);
+          if (id != NULL &&
+              (transfer = g_hash_table_lookup (self->priv->transfers_by_id,
+                                               id)) != NULL)
+            {
+              file_transfer_cancel (transfer);
+            }
+        }
+
+      result = json_node_new (JSON_NODE_VALUE);
+      json_node_set_boolean (result, TRUE);
+    }
   else
     {
       /* error, method not known/handled */
