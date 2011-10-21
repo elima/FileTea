@@ -156,8 +156,8 @@ Evd.Object.extend (TransferManager.prototype, {
 
     _init: function (args) {
         this._files = args.files;
+        this._rpcFunc = args.rpcFunc;
 
-        this._rpc = null;
 
         var self = this;
         args.rpcFunc (function (rpc, error) {
@@ -166,9 +166,7 @@ Evd.Object.extend (TransferManager.prototype, {
                 return;
             }
 
-            self._rpc = rpc;
-
-            self._rpc.registerMethod ("fileTransferNew",
+            rpc.registerMethod ("fileTransferNew",
                 function (rpc, params, invocation, context) {
                     self._onNewTransferRequest (rpc, params, invocation, context);
                 }
