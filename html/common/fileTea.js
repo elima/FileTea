@@ -293,6 +293,21 @@ Evd.Object.extend (TransferManager.prototype, {
         };
 
         xhr.send (file.blob);
+    },
+
+    cancel: function (ids) {
+        this._rpcFunc (function (rpc, error) {
+            if (error) {
+                throw (error);
+                return;
+            }
+
+            rpc.callMethod ("cancelTransfer", ids,
+                function (result, error) {
+                    if (error)
+                        throw (error);
+                });
+        });
     }
 });
 
@@ -338,8 +353,6 @@ var Ft = new (function () {
     };
 
     this._setupRpc  = function () {
-        var self = this;
-
         this._jsonRpc = new Evd.Jsonrpc ({
             transportWriteCb: function (jsonRpc, msg) {
                 if (self._peer)
