@@ -20,6 +20,9 @@ Evd.Object.extend (FileSources.prototype, {
 
     add: function (files) {
         for (var i = 0; i < files.length; i++) {
+            if (files[i].size <= 0)
+                continue;
+
             this._fileCounter++;
 
             var id = this._fileCounter.toString();
