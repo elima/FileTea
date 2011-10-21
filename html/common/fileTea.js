@@ -152,12 +152,22 @@ Evd.Object.extend (FileSources.prototype, {
 var TransferManager = new Evd.Constructor ();
 TransferManager.prototype = new Evd.Object ();
 
+TransferManager.Status = {
+    NOT_STARTED:      0,
+    ACTIVE:           1,
+    PAUSED:           2,
+    COMPLETED:        3,
+    SOURCE_ABORTED:   4,
+    TARGET_ABORTED:   5
+};
+
 Evd.Object.extend (TransferManager.prototype, {
 
     _init: function (args) {
         this._files = args.files;
         this._rpcFunc = args.rpcFunc;
 
+        this._transfers = {};
 
         var self = this;
         args.rpcFunc (function (rpc, error) {
@@ -169,9 +179,70 @@ Evd.Object.extend (TransferManager.prototype, {
             rpc.registerMethod ("fileTransferNew",
                 function (rpc, params, invocation, context) {
                     self._onNewTransferRequest (rpc, params, invocation, context);
-                }
-            );
+                });
+
+            rpc.addEventListener ("transfer-status",
+                function (params, context) {
+                    for (var i=0; i<params.length; i++) {
+                        var status = params[i];
+                        self._onTransferStatus (status.id,
+                                                status.status,
+                                                status.transferred,
+                                                status.bandwidth);
+                    }
+                });
+
+            rpc.addEventListener ("transfer-started",
+                function (params, context) {
+                    self._onTransferStarted (params[0], params[1], params[2], params[3]);
+                });
+
+            rpc.addEventListener ("transfer-finished",
+                function (params, context) {
+                    self._onTransferFinished (params[0], params[1]);
+                });
         });
+    },
+
+    _onTransferStarted: function (id, fileName, fileSize, isDownload) {
+        var transfer = {
+            id: id,
+            status: TransferManager.Status.ACTIVE,
+            fileName: unescape (fileName),
+            fileSize: fileSize,
+            transferred: 0,
+            bandwidth: 0.0,
+            isDownload: isDownload
+        };
+
+        this._transfers[id] = transfer;
+
+        this._fireEvent ("transfer-started", [transfer]);
+    },
+
+    _onTransferFinished: function (id, status) {
+        var transfer = this._transfers[id];
+        if (! transfer)
+            return;
+
+        transfer.status = status;
+
+        if (transfer.status == TransferManager.Status.COMPLETED)
+            transfer.transferred = transfer.fileSize;
+
+        this._fireEvent ("transfer-finished", [transfer]);
+    },
+
+    _onTransferStatus: function (id, status, transferred, bandwidth) {
+        var transfer = this._transfers[id];
+        if (! transfer)
+            return;
+
+        transfer.status = status;
+        transfer.transferred = transferred;
+        transfer.bandwidth = bandwidth;
+
+        this._fireEvent ("transfer-status", [transfer]);
     },
 
     _onNewTransferRequest: function (rpc, params, invocation, context) {
@@ -184,9 +255,23 @@ Evd.Object.extend (TransferManager.prototype, {
             return;
         }
 
-        this._fireEvent ("transfer-started", [transferId, file]);
+        rpc.respond (invocation, [true], context);
+
+        var transfer = {
+            id: transferId,
+            status: TransferManager.Status.ACTIVE,
+            fileName: file.name,
+            fileSize: file.size,
+            transferred: 0,
+            bandwidth: 0.0,
+            isDownload: false
+        };
+
+        this._transfers[transferId] = transfer;
 
         this._transferFile (file, transferId);
+
+        this._fireEvent ("transfer-started", [transfer]);
     },
 
     _transferFile: function  (file, transferId) {
