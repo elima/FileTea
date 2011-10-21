@@ -58,6 +58,7 @@ struct _FileteaNodePrivate
   GHashTable *sources_by_id;
   GHashTable *sources_by_peer;
   GHashTable *transfers_by_id;
+  GHashTable *transfers_by_peer;
 
   gboolean force_https;
   guint https_port;
@@ -169,6 +170,12 @@ filetea_node_init (FileteaNode *self)
                            NULL,
                            (GDestroyNotify) file_transfer_unref);
 
+  self->priv->transfers_by_peer =
+    g_hash_table_new_full (g_direct_hash,
+                           g_direct_equal,
+                           NULL,
+                           (GDestroyNotify) g_queue_free);
+
   priv->force_https = FALSE;
   priv->https_port = 0;
 
@@ -210,6 +217,12 @@ filetea_node_dispose (GObject *obj)
     {
       g_hash_table_unref (self->priv->transfers_by_id);
       self->priv->transfers_by_id = NULL;
+    }
+
+  if (self->priv->transfers_by_peer != NULL)
+    {
+      g_hash_table_unref (self->priv->transfers_by_peer);
+      self->priv->transfers_by_peer = NULL;
     }
 
   G_OBJECT_CLASS (filetea_node_parent_class)->dispose (obj);
@@ -462,6 +475,36 @@ on_new_transfer_response (GObject      *obj,
 }
 
 static void
+bind_transfer_to_peer (FileteaNode *self, EvdPeer *peer, FileTransfer *transfer)
+{
+  GQueue *peer_transfers;
+
+  peer_transfers = g_hash_table_lookup (self->priv->transfers_by_peer, peer);
+  if (peer_transfers == NULL)
+    {
+      peer_transfers = g_queue_new ();
+      g_hash_table_insert (self->priv->transfers_by_peer, peer, peer_transfers);
+    }
+
+  g_queue_push_head (peer_transfers, transfer);
+}
+
+static void
+unbind_transfer_from_peer (FileteaNode *self, EvdPeer *peer, FileTransfer *transfer)
+{
+  GQueue *peer_transfers;
+
+  peer_transfers = g_hash_table_lookup (self->priv->transfers_by_peer, peer);
+  if (peer_transfers == NULL)
+    return;
+
+  g_queue_remove (peer_transfers, transfer);
+
+  if (g_queue_get_length (peer_transfers) == 0)
+    g_hash_table_remove (self->priv->transfers_by_peer, peer);
+}
+
+static void
 on_transfer_finished (GObject      *obj,
                       GAsyncResult *res,
                       gpointer      user_data)
@@ -482,6 +525,10 @@ on_transfer_finished (GObject      *obj,
       g_debug ("Transfer completed successfully: %s",
                transfer->source->file_name);
     }
+
+  unbind_transfer_from_peer (self, transfer->source->peer, transfer);
+  if (transfer->target_peer != NULL)
+    unbind_transfer_from_peer (self, transfer->target_peer, transfer);
 
   g_hash_table_remove (self->priv->transfers_by_id, transfer->id);
 }
@@ -527,6 +574,8 @@ setup_new_transfer (FileteaNode       *self,
   json_node_free (params);
 
   g_hash_table_insert (self->priv->transfers_by_id, transfer->id, transfer);
+
+  bind_transfer_to_peer (self, transfer->source->peer, transfer);
 
   return transfer;
 }
@@ -577,6 +626,12 @@ handle_special_request (FileteaNode         *self,
         {
           file_transfer_set_source_conn (transfer, conn);
           file_transfer_start (transfer);
+
+          if (transfer->target_peer &&
+              ! evd_peer_is_closed (transfer->target_peer))
+            {
+              bind_transfer_to_peer (self, transfer->target_peer, transfer);
+            }
 
           return TRUE;
         }
