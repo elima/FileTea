@@ -51,8 +51,9 @@ Evd.Object.extend (DownloadView.prototype, {
                             urlEl._baseUrl = info.url;
 
                             urlEl.onclick = function () {
-                                if (Ft._peer != null)
-                                    urlEl.href = urlEl._baseUrl + "?" + Ft._peer.id;
+                                var peerId = Ft.getRemotePeerId ();
+                                if (peerId)
+                                    urlEl.href = urlEl._baseUrl + "?" + peerId;
                                 return true;
                             };
 
