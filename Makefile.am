@@ -10,6 +10,8 @@ EXTRA_DIST = \
 	autogen.sh \
 	sample-filetea.conf
 
+man8_MANS = filetea.8
+
 CLEANFILES = *~
 
 MAINTAINERCLEANFILES = \

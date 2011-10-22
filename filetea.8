@@ -1,0 +1,63 @@
+.\"                                      Hey, EMACS: -*- nroff -*-
+.\" First parameter, NAME, should be all caps
+.\" Second parameter, SECTION, should be 1-8, maybe w/ subsection
+.\" other parameters are allowed: see man(7), man(1)
+.TH filetea 8 "2011\-10\-21"
+.\" Please adjust this date whenever revising the manpage.
+.\"
+.\" Some roff macros, for reference:
+.\" .nh        disable hyphenation
+.\" .hy        enable hyphenation
+.\" .ad l      left justify
+.\" .ad b      justify to both left and right margins
+.\" .nf        disable filling
+.\" .fi        enable filling
+.\" .br        insert line break
+.\" .sp <n>    insert n+1 empty lines
+.\" for manpage-specific macros, see man(7)
+.SH NAME
+filetea \- Web based file sharing service daemon
+.SH SYNOPSIS
+.B filetea
+.I [OPTIONS]
+.SH DESCRIPTION
+This manual page documents briefly the
+.B filetea
+command.
+.PP
+.B FileTea
+is a Web service that provides instant and anonymous file-sharing using
+only a standard browser as client. Unlike traditional Web based
+file-sharing services, FileTea does not store files server-side. Instead,
+files are just routed on-the-fly from seeder to leecher, through the server.
+
+filetea is the service daemon that runs on a FileTea server. It handles peer
+synchronization, file routing and status reporting; and also acts as
+web-server for static HTML content when run in standalone mode.
+
+.SH OPTIONS
+.TP
+.B \-h "\| help\^"
+Display a brief summary of the command\-line options and their default
+values.
+.TP
+.BI \-c "\| config\^"
+Absolute path for the configuration file to use, default is
+'/etc/filetea/filetea.conf'.
+.TP
+.BI \-D "\| daemonize\^"
+Run the service in the background.
+.TP
+.BI \-p "\| http-port\^"
+Port to listen on for plain HTTP service, overriding the value specified
+in configuration file.
+.TP
+.BI \-P "\| https-port\^"
+Port to listen on for secure HTTP service (https), overriding the value
+specified in configuration file.
+.TP
+.I /etc/filetea/filetea.conf
+Filetea config file.
+.SH AUTHOR
+This manpage has been written by
+Eduardo Lima Mitev <elima@igalia.com>
