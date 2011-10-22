@@ -11,6 +11,7 @@ Evd.Object.extend (UxManager.prototype, {
 
         this._content = args.contentManager;
 
+        this._highlights = {};
 
         this._content.addEventListener ("add",
             function (id, name, content, index) {
@@ -20,6 +21,8 @@ Evd.Object.extend (UxManager.prototype, {
             function (id, name) {
                 document.title = name + " - " + self._baseTitle;
                 self._tabs.tabs ("select", "#" + id);
+
+                self.setHighlight (id, false);
             });
         this._content.addEventListener ("loading",
             function (id) {
@@ -145,5 +148,31 @@ Evd.Object.extend (UxManager.prototype, {
                                           self._content.Mode.VOLATILE);
                     });
             });
+    },
+
+    setHighlight: function (tabId, enabled) {
+        var el = $ ("#" + tabId + "-menu-item");
+
+        if (enabled) {
+            if (this._highlights[tabId])
+                return;
+            else {
+                this._highlights[tabId] =
+                    window.setInterval (function () {
+                        if (el.hasClass ("highlight"))
+                            el.removeClass ("highlight");
+                        else
+                            el.addClass ("highlight");
+                    }, 500);
+            }
+        }
+        else {
+            el.removeClass ("highlight");
+
+            if (this._highlights[tabId]) {
+                window.clearInterval (this._highlights[tabId]);
+                delete (this._highlights[tabId]);
+            }
+        }
     }
 });
