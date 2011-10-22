@@ -11,22 +11,10 @@ Evd.Object.extend (UxManager.prototype, {
 
         this._content = args.contentManager;
 
-        function getTab (id, name, index) {
-            var div = document.getElementById (id);
-            if (! div) {
-                div = document.createElement ("div");
-                div.id = id;
-                document.getElementById ("tabs").appendChild (div);
-                self._tabs.tabs ("add", "#" + id, name, index);
-            }
-
-            return div;
-        }
 
         this._content.addEventListener ("add",
             function (id, name, content, index) {
-                var div = getTab (id, name, index);
-                div.innerHTML = content;
+                self._addContent (id, name, content, index);
             });
         this._content.addEventListener ("show",
             function (id, name) {
@@ -35,9 +23,12 @@ Evd.Object.extend (UxManager.prototype, {
             });
         this._content.addEventListener ("loading",
             function (id) {
-                var div = document.getElementById (id);
-                self._tabs.tabs ("select", "#" + id);
-                div.innerHTML = '<div id="content-loading"></div>';
+                self._loading (id);
+            });
+
+        this._content.addEventListener ("not-found",
+            function (id) {
+                self._openDownloadView (id);
             });
 
         // confirm before navigating away from page
@@ -100,5 +91,59 @@ Evd.Object.extend (UxManager.prototype, {
             $ ("#content").get (0).style.display = "block";
             self._fireEvent ("ready", []);
         }, 1);
+    },
+
+    _addContent: function (id, name, content, index) {
+        var self = this;
+
+        function getTab (id, name, index) {
+            var div = document.getElementById (id);
+            if (! div) {
+                div = document.createElement ("div");
+                div.id = id;
+                document.getElementById ("tabs").appendChild (div);
+                self._tabs.tabs ("add", "#" + id, name, index);
+            }
+
+            return div;
+        }
+
+        var div = getTab (id, name, index);
+        div.innerHTML = content;
+    },
+
+    _loading: function (id) {
+        var div = document.getElementById (id);
+        if (div) {
+            this._tabs.tabs ("select", "#" + id);
+            div.innerHTML = '<div id="content-loading"></div>';
+        }
+    },
+
+    _openDownloadView: function (id) {
+        var view = null;
+
+        this._addContent (id, "Download");
+        this._loading (id);
+
+        var el = $ ("#" + id).get(0);
+
+        var self = this;
+
+        require (["./downloadView.js"],
+            function (DownloadView) {
+                view = new DownloadView ({
+                    parentElement: el
+                });
+
+                view.openFile (id,
+                    function (result, error) {
+                        self._content.add (id,
+                                           "Download",
+                                           null,
+                                           el.innerHTML,
+                                          self._content.Mode.VOLATILE);
+                    });
+            });
     }
 });

@@ -111,43 +111,7 @@ Evd.Object.extend (ContentManager.prototype, {
 
         var c = this._contents[id];
         if (! c) {
-            this._fireEvent ("add", [id, "Download"]);
-            this._fireEvent ("loading", [id]);
-
-            // @TODO: remove this from here; it belongs to a DownloadView widget
-            Ft.queryRemoteFile (id,
-                function (info, error) {
-                    if (error) {
-                        self.add (id,
-                                  "Download",
-                                  "not-found-view.html",
-                                  null,
-                                  self.Mode.VOLATILE);
-                        self.open (id);
-                    }
-                    else {
-                        jQuery.ajax ({
-                            url: "download-view.html",
-                            success: function (data, statusText) {
-                                self._fireEvent ("add", [id, "Download", data]);
-
-                                $ ("#download-view-name").html (info.name);
-                                if (! info.type)
-                                    info.type = "unknown";
-                                $ ("#download-view-type").html (info.type);
-                                $ ("#download-view-size").html (self._utils.humanizeFileSize (info.size));
-                                $ ("#download-view-url").get(0).href =  info.url;
-
-                                self.add (id,
-                                          "Download",
-                                          "download-view.html",
-                                          document.getElementById ("download-view").innerHTML,
-                                          self.Mode.VOLATILE);
-                                self.open (id);
-                            }
-                        });
-                    }
-            });
+            this._fireEvent ("not-found", [id]);
 
             return true;
         }
