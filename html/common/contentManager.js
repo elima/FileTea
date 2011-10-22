@@ -189,5 +189,9 @@ Evd.Object.extend (ContentManager.prototype, {
 
     start: function () {
         this._fragidNav.start ();
+    },
+
+    getCurrent: function () {
+        return this._fragidNav.getFragid ();
     }
 });
