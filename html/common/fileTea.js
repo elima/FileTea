@@ -403,6 +403,13 @@ var Ft = new (function () {
             });
     };
 
+    this.getRemotePeerId = function () {
+        if (this._peer)
+            return this._peer.id;
+        else
+            return null;
+    };
+
     window.addEventListener ("unload", function () {
         if (self._transport)
             self._transport.close (true);
