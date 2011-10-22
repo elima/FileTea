@@ -72,7 +72,7 @@ $ (function () {
   <div id="tabs">
     <ul id="main-menu">
       <li id="shared-files-menu-item"><a href="#shared-files">Share files</a></li>
-<!--      <li><a href="#transfers">Transfers</a></li> -->
+      <li id="transfers-menu-item"><a href="#transfers">Transfers</a></li>
     </ul>
 
     <div id="shared-files">
@@ -87,11 +87,22 @@ $ (function () {
       </div>
     </div>
 
-<!--
     <div id="transfers">
-      <p>@TODO</p>
+      <link type="text/css" href="transfers-view.css" rel="Stylesheet" />
+      <div id="transfers-view-downloads">
+        <h1>Downloads</h1>
+        <div class="transfer-list" id="downloads-list"></div>
+      </div>
+
+      <div id="transfers-view-uploads">
+        <h1>Uploads</h1>
+        <div class="transfer-list" id="uploads-list"></div>
+      </div>
+
+      <div id="transfer-list-confirm-cancel">
+        Transfer is active, sure you want to cancel it?
+      </div>
     </div>
--->
   </div>
 
   </div>

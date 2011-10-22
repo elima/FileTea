@@ -10,6 +10,7 @@ Evd.Object.extend (UxManager.prototype, {
         this._baseTitle = document.title;
 
         this._content = args.contentManager;
+        this._transfers = args.transferManager;
 
         this._highlights = {};
 
@@ -67,10 +68,25 @@ Evd.Object.extend (UxManager.prototype, {
                     });
             });
 
+        // transfers view
+        require (["transfersView.js"],
+            function (TransfersView) {
+                self._transfersView = new TransfersView ({
+                    parentElement: $ ("#transfers").get(0),
+                    transferManager: Ft.transfers
+                });
+
+                self._transfersView.addEventListener ("have-updates",
+                     function () {
+                         if (self._content.getCurrent () != "transfers")
+                             self.setHighlight ("transfers", true);
+                     });
+            });
+
         self._tabs = $ ("#tabs");
 
         self._tabs.tabs ({
-            tabTemplate: "<li><a href='#{href}'>#{label}</a><span class='ui-icon ui-icon-close'>Remove Tab</span></li>",
+            tabTemplate: "<li id='#{href}-menu-item'><a href='#{href}'>#{label}</a><span class='ui-icon ui-icon-close'>Remove Tab</span></li>",
             remove: function (event, ui) {
                 self._content.invalidate (ui.panel.id);
             },
