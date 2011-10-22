@@ -106,7 +106,7 @@ Evd.Object.extend (ContentManager.prototype, {
         this._default = id;
     },
 
-    open: function (id) {
+    open: function (id, callback) {
         var self = this;
 
         var c = this._contents[id];
@@ -162,6 +162,8 @@ Evd.Object.extend (ContentManager.prototype, {
                     c.content = data;
                     self._fireEvent ("add", [c.id, c.name, c.content]);
                     self._fireEvent ("show", [c.id, c.name]);
+                    if (callback)
+                        callback (c.content);
                 }
             });
         }
