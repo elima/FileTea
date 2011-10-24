@@ -3,7 +3,7 @@ MAINTAINERCLEANFILES = \
 
 htmldatadir = $(datadir)/filetea
 
-bin_PROGRAMS = filetea
+sbin_PROGRAMS = filetea
 
 filetea_CFLAGS = \
 	-Wall -Werror -g3 -O0 -ggdb \
