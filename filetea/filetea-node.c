@@ -37,6 +37,8 @@ G_DEFINE_TYPE (FileteaNode, filetea_node, EVD_TYPE_WEB_SERVICE)
 #define FILETEA_ERROR_DOMAIN_STR "me.filetea.ErrorDomain"
 #define FILETEA_ERROR            g_quark_from_string (FILETEA_ERROR_DOMAIN_STR)
 
+#define DEFAULT_JQUERY_DIR "/usr/share/javascript/jquery/"
+
 typedef enum {
   FILETEA_ERROR_SUCCESS,
   FILETEA_ERROR_FILE_NOT_FOUND,
@@ -54,6 +56,7 @@ struct _FileteaNodePrivate
   EvdWebTransport *transport;
   EvdWebSelector *selector;
   EvdWebDir *webdir;
+  EvdWebDir *jquery_webdir;
 
   GHashTable *sources_by_id;
   GHashTable *sources_by_peer;
@@ -135,12 +138,22 @@ filetea_node_init (FileteaNode *self)
   priv->webdir = evd_web_dir_new ();
   evd_web_dir_set_root (priv->webdir, HTML_DATA_DIR);
 
+  /* jquery web dir */
+  priv->jquery_webdir = evd_web_dir_new ();
+  evd_web_dir_set_alias (priv->jquery_webdir, "/jquery");
+
   /* web selector */
   priv->selector = evd_web_selector_new ();
 
   evd_web_transport_set_selector (priv->transport, priv->selector);
   evd_web_selector_set_default_service (priv->selector,
                                         EVD_SERVICE (priv->webdir));
+
+  evd_web_selector_add_service (priv->selector,
+                                NULL,
+                                "/jquery/",
+                                EVD_SERVICE (priv->jquery_webdir),
+                                NULL);
 
   /* track peers */
   priv->peer_manager = evd_peer_manager_get_default ();
@@ -242,6 +255,7 @@ filetea_node_finalize (GObject *obj)
   g_object_unref (self->priv->rpc);
   g_object_unref (self->priv->transport);
   g_object_unref (self->priv->webdir);
+  g_object_unref (self->priv->jquery_webdir);
   g_object_unref (self->priv->selector);
 
   if (self->priv->log_queue != NULL)
@@ -1205,6 +1219,8 @@ setup_web_dir_logging (FileteaNode *self)
 static void
 load_config (FileteaNode *self, GKeyFile *config)
 {
+  gchar *jquery_dir;
+
   /* source id start depth */
   self->priv->source_id_start_depth =
     g_key_file_get_integer (config,
@@ -1248,6 +1264,17 @@ load_config (FileteaNode *self, GKeyFile *config)
                                                     NULL);
   if (self->priv->log_filename != NULL && self->priv->log_filename[0] != '\0')
     setup_web_dir_logging (self);
+
+  /* jquery dir */
+  jquery_dir = g_key_file_get_string (config,
+                                      "node",
+                                      "jquery-dir",
+                                      NULL);
+  if (jquery_dir == NULL || jquery_dir[0] == '\0')
+    jquery_dir = g_strdup (DEFAULT_JQUERY_DIR);
+
+  evd_web_dir_set_root (self->priv->jquery_webdir, jquery_dir);
+  g_free (jquery_dir);
 }
 
 /* public methods */
