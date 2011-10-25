@@ -68,9 +68,6 @@ finish_setup (void)
 
   g_debug ("Setup completed, FileTea daemon running...");
 
-  if (daemonize)
-    evd_daemon_daemonize (evd_daemon, NULL);
-
   return;
 
  quit:
@@ -274,9 +271,6 @@ main (gint argc, gchar *argv[])
   g_type_init ();
   evd_tls_init (NULL);
 
-  /* main daemon */
-  evd_daemon = evd_daemon_get_default (&argc, &argv);
-
   /* parse command line args */
   context = g_option_context_new ("- low friction file sharing service daemon");
   g_option_context_add_main_entries (context, entries, NULL);
@@ -327,6 +321,12 @@ main (gint argc, gchar *argv[])
 
   if (http_port == 0)
     http_port = DEFAULT_HTTP_LISTEN_PORT;
+
+  /* main daemon */
+  evd_daemon = evd_daemon_get_default (&argc, &argv);
+
+  if (daemonize)
+    evd_daemon_daemonize (evd_daemon, NULL);
 
   /* setup HTTPS service, if enabled in config file */
   if (g_key_file_get_boolean (config, "https", "enabled", NULL))
