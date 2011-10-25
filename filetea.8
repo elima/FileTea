@@ -37,24 +37,25 @@ web-server for static HTML content when run in standalone mode.
 
 .SH OPTIONS
 .TP
-.B \-h "\| help\^"
+.BI \-h "\fR, " \-\^\-help
 Display a brief summary of the command\-line options and their default
 values.
 .TP
-.BI \-c "\| config\^"
+.BI \-c " config\fR, " \-\^\-conf= "config"
 Absolute path for the configuration file to use, default is
-'/etc/filetea/filetea.conf'.
+.I /etc/filetea/filetea.conf.
 .TP
-.BI \-D "\| daemonize\^"
+.BI \-D "\fR, " \-\^\-daemonize
 Run the service in the background.
 .TP
-.BI \-p "\| http-port\^"
+.BI \-p " port\fR, " \-\^\-http-port= "port"
 Port to listen on for plain HTTP service, overriding the value specified
 in configuration file.
 .TP
-.BI \-P "\| https-port\^"
+.BI \-P " port\fR, " \-\^\-https-port= "port"
 Port to listen on for secure HTTP service (https), overriding the value
 specified in configuration file.
+.SH FILES
 .TP
 .I /etc/filetea/filetea.conf
 Filetea config file.
