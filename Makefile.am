@@ -8,9 +8,12 @@ DIST_SUBDIRS = \
 
 EXTRA_DIST = \
 	autogen.sh \
-	sample-filetea.conf
+	filetea.conf
 
 man8_MANS = filetea.8
+
+configdir = $(sysconfdir)/filetea
+config_DATA = filetea.conf
 
 CLEANFILES = *~
 
