@@ -267,6 +267,7 @@ main (gint argc, gchar *argv[])
   gint exit_status = 0;
   GError *error = NULL;
   GOptionContext *context = NULL;
+  gchar *pid_file;
 
   g_type_init ();
   evd_tls_init (NULL);
@@ -352,6 +353,14 @@ main (gint argc, gchar *argv[])
           exit_status = -1;
           goto out;
         }
+    }
+
+  /* set PID file */
+  pid_file = g_key_file_get_string (config, "node", "pid-file", NULL);
+  if (pid_file != NULL && pid_file[0] != '\0')
+    {
+      evd_daemon_set_pid_file (evd_daemon, pid_file);
+      g_free (pid_file);
     }
 
   /* start the show */
