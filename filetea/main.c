@@ -355,7 +355,11 @@ main (gint argc, gchar *argv[])
     }
 
   /* start the show */
-  exit_status = evd_daemon_run (evd_daemon);
+  if ((exit_status = evd_daemon_run (evd_daemon, &error)) < 0)
+    {
+      g_debug ("ERROR running daemon: %s", error->message);
+      g_error_free (error);
+    }
 
   /* free stuff */
   if (http_node != NULL)
