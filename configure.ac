@@ -51,7 +51,7 @@ PKG_PROG_PKG_CONFIG
 
 # Required libraries
 PKG_CHECK_MODULES(JSON, json-glib-1.0 >= 0.10.0)
-PKG_CHECK_MODULES(EVD, evd-0.1 >= 0.1.14)
+PKG_CHECK_MODULES(EVD, evd-0.1 >= 0.1.15)
 
 # Silent build
 m4_ifdef([AM_SILENT_RULES],[AM_SILENT_RULES([yes])])
