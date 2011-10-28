@@ -37,7 +37,8 @@ G_DEFINE_TYPE (FileteaNode, filetea_node, EVD_TYPE_WEB_SERVICE)
 #define FILETEA_ERROR_DOMAIN_STR "me.filetea.ErrorDomain"
 #define FILETEA_ERROR            g_quark_from_string (FILETEA_ERROR_DOMAIN_STR)
 
-#define DEFAULT_JQUERY_DIR "/usr/share/javascript/jquery/"
+#define DEFAULT_JQUERY_DIR    "/usr/share/javascript/jquery/"
+#define DEFAULT_JQUERY_UI_DIR "/usr/share/javascript/jquery-ui/"
 
 typedef enum {
   FILETEA_ERROR_SUCCESS,
@@ -57,6 +58,7 @@ struct _FileteaNodePrivate
   EvdWebSelector *selector;
   EvdWebDir *webdir;
   EvdWebDir *jquery_webdir;
+  EvdWebDir *jquery_ui_webdir;
 
   GHashTable *sources_by_id;
   GHashTable *sources_by_peer;
@@ -142,6 +144,10 @@ filetea_node_init (FileteaNode *self)
   priv->jquery_webdir = evd_web_dir_new ();
   evd_web_dir_set_alias (priv->jquery_webdir, "/jquery");
 
+  /* jquery-ui web dir */
+  priv->jquery_ui_webdir = evd_web_dir_new ();
+  evd_web_dir_set_alias (priv->jquery_ui_webdir, "/jquery-ui");
+
   /* web selector */
   priv->selector = evd_web_selector_new ();
 
@@ -151,8 +157,14 @@ filetea_node_init (FileteaNode *self)
 
   evd_web_selector_add_service (priv->selector,
                                 NULL,
-                                "/jquery/",
+                                "^/jquery/",
                                 EVD_SERVICE (priv->jquery_webdir),
+                                NULL);
+
+  evd_web_selector_add_service (priv->selector,
+                                NULL,
+                                "^/jquery-ui/",
+                                EVD_SERVICE (priv->jquery_ui_webdir),
                                 NULL);
 
   /* track peers */
@@ -256,6 +268,7 @@ filetea_node_finalize (GObject *obj)
   g_object_unref (self->priv->transport);
   g_object_unref (self->priv->webdir);
   g_object_unref (self->priv->jquery_webdir);
+  g_object_unref (self->priv->jquery_ui_webdir);
   g_object_unref (self->priv->selector);
 
   if (self->priv->log_queue != NULL)
@@ -1219,7 +1232,7 @@ setup_web_dir_logging (FileteaNode *self)
 static void
 load_config (FileteaNode *self, GKeyFile *config)
 {
-  gchar *jquery_dir;
+  gchar *dir;
 
   /* source id start depth */
   self->priv->source_id_start_depth =
@@ -1266,15 +1279,26 @@ load_config (FileteaNode *self, GKeyFile *config)
     setup_web_dir_logging (self);
 
   /* jquery dir */
-  jquery_dir = g_key_file_get_string (config,
-                                      "node",
-                                      "jquery-dir",
-                                      NULL);
-  if (jquery_dir == NULL || jquery_dir[0] == '\0')
-    jquery_dir = g_strdup (DEFAULT_JQUERY_DIR);
+  dir = g_key_file_get_string (config,
+                               "node",
+                               "jquery-dir",
+                               NULL);
+  if (dir == NULL || dir[0] == '\0')
+    dir = g_strdup (DEFAULT_JQUERY_DIR);
 
-  evd_web_dir_set_root (self->priv->jquery_webdir, jquery_dir);
-  g_free (jquery_dir);
+  evd_web_dir_set_root (self->priv->jquery_webdir, dir);
+  g_free (dir);
+
+  /* jquery-ui dir */
+  dir = g_key_file_get_string (config,
+                               "node",
+                               "jquery-ui-dir",
+                               NULL);
+  if (dir == NULL || dir[0] == '\0')
+    dir = g_strdup (DEFAULT_JQUERY_UI_DIR);
+
+  evd_web_dir_set_root (self->priv->jquery_ui_webdir, dir);
+  g_free (dir);
 }
 
 /* public methods */
