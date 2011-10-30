@@ -255,7 +255,7 @@ file_transfer_on_read (GObject      *obj,
   self->transferred += size;
 
   throttle =
-    evd_connection_get_input_throttle (EVD_CONNECTION (self->target_conn));
+    evd_io_stream_get_input_throttle (EVD_IO_STREAM (self->target_conn));
   self->bandwidth = evd_stream_throttle_get_actual_bandwidth (throttle);
 
   g_assert (self->transferred <= self->source->file_size);
@@ -442,7 +442,7 @@ file_transfer_get_status (FileTransfer *self,
           EvdStreamThrottle *throttle;
 
           throttle =
-            evd_connection_get_input_throttle (EVD_CONNECTION (self->source_conn));
+            evd_io_stream_get_input_throttle (EVD_IO_STREAM (self->source_conn));
 
           *bandwidth = evd_stream_throttle_get_actual_bandwidth (throttle);
         }
