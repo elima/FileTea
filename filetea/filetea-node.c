@@ -54,7 +54,7 @@ struct _FileteaNodePrivate
 
   EvdPeerManager *peer_manager;
   EvdJsonrpc *rpc;
-  EvdWebTransport *transport;
+  EvdWebTransportServer *transport;
   EvdWebSelector *selector;
   EvdWebDir *webdir;
   EvdWebDir *jquery_webdir;
@@ -127,7 +127,7 @@ filetea_node_init (FileteaNode *self)
   self->priv = priv;
 
   /* web transport */
-  priv->transport = evd_web_transport_new (NULL);
+  priv->transport = evd_web_transport_server_new (NULL);
 
   /* JSON-RPC */
   priv->rpc = evd_jsonrpc_new ();
@@ -151,7 +151,7 @@ filetea_node_init (FileteaNode *self)
   /* web selector */
   priv->selector = evd_web_selector_new ();
 
-  evd_web_transport_set_selector (priv->transport, priv->selector);
+  evd_web_transport_server_set_selector (priv->transport, priv->selector);
   evd_web_selector_set_default_service (priv->selector,
                                         EVD_SERVICE (priv->webdir));
 
