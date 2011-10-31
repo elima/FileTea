@@ -8,6 +8,7 @@ DIST_SUBDIRS = \
 
 EXTRA_DIST = \
 	autogen.sh \
+	filetea.8 \
 	filetea.conf
 
 man8_MANS = filetea.8
