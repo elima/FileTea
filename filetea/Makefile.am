@@ -6,11 +6,17 @@ htmldatadir = $(datadir)/filetea
 sbin_PROGRAMS = filetea
 
 filetea_CFLAGS = \
-	-Wall -Werror -g3 -O0 -ggdb \
+	-Wall \
 	$(EVD_CFLAGS) \
 	$(JSON_CFLAGS) \
 	-DENABLE_TESTS="\"$(enable_tests)\"" \
 	-DHTML_DATA_DIR="\"$(htmldatadir)\""
+
+if ENABLE_DEBUG
+filetea_CFLAGS += -Werror -g3 -O0 -ggdb
+else
+filetea_CFLAGS += -DG_DISABLE_ASSERT -DG_DISABLE_CHECKS
+endif
 
 filetea_LDADD = \
 	$(EVD_LIBS) \
