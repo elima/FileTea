@@ -541,7 +541,6 @@ report_transfer_finished (FileteaNode *self, FileTransfer *transfer)
   JsonNode *node;
   JsonArray *args;
   guint status;
-  gboolean notification_result;
 
   file_transfer_get_status (transfer, &status, NULL, NULL);
 
@@ -552,23 +551,25 @@ report_transfer_finished (FileteaNode *self, FileTransfer *transfer)
   json_array_add_string_element (args, transfer->id);
   json_array_add_int_element (args, status);
 
-  notification_result =
-    evd_jsonrpc_send_notification (self->priv->rpc,
-                                   "transfer-finished",
-                                   node,
-                                   transfer->source->peer,
-                                   NULL);
-  g_assert (notification_result);
+  if (! evd_jsonrpc_send_notification (self->priv->rpc,
+                                       "transfer-finished",
+                                       node,
+                                       transfer->source->peer,
+                                       NULL))
+    {
+      g_warning ("Failed to send 'transfer-finished' notification to peer");
+    }
 
   if (transfer->target_peer != NULL)
     {
-      notification_result =
-        evd_jsonrpc_send_notification (self->priv->rpc,
-                                       "transfer-finished",
-                                       node,
-                                       transfer->target_peer,
-                                       NULL);
-      g_assert (notification_result);
+      if (! evd_jsonrpc_send_notification (self->priv->rpc,
+                                           "transfer-finished",
+                                           node,
+                                           transfer->target_peer,
+                                           NULL))
+        {
+          g_warning ("Failed to send 'transfer-finished' notification to peer");
+        }
     }
 
   json_array_unref (args);
@@ -666,15 +667,14 @@ report_transfers_status (gpointer user_data)
 
       if (json_array_get_length (args) > 0)
         {
-          gboolean notification_result;
-
-          notification_result =
-            evd_jsonrpc_send_notification (self->priv->rpc,
-                                           "transfer-status",
-                                           node,
-                                           peer,
-                                           NULL);
-          g_assert (notification_result);
+          if (! evd_jsonrpc_send_notification (self->priv->rpc,
+                                               "transfer-status",
+                                               node,
+                                               peer,
+                                               NULL))
+            {
+              g_warning ("Failed to send 'transfer-status' notification to peer");
+            }
         }
 
       json_array_unref (args);
@@ -784,7 +784,6 @@ handle_special_request (FileteaNode         *self,
         {
           JsonNode *node;
           JsonArray *args;
-          gboolean notification_result;
 
           file_transfer_set_source_conn (transfer, conn);
           file_transfer_start (transfer);
@@ -804,13 +803,14 @@ handle_special_request (FileteaNode         *self,
               json_array_add_boolean_element (args, TRUE);
 
               /* notify target */
-              notification_result =
-                evd_jsonrpc_send_notification (self->priv->rpc,
-                                               "transfer-started",
-                                               node,
-                                               transfer->target_peer,
-                                               NULL);
-              g_assert (notification_result);
+              if (! evd_jsonrpc_send_notification (self->priv->rpc,
+                                                   "transfer-started",
+                                                   node,
+                                                   transfer->target_peer,
+                                                   NULL))
+                {
+                  g_warning ("Failed to send 'transfer-started' notification to peer");
+                }
 
               json_array_unref (args);
               json_node_free (node);
