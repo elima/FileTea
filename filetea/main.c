@@ -131,6 +131,48 @@ on_tls_certificate_loaded (GObject      *obj,
 }
 
 static gboolean
+resolve_port (GKeyFile     *config,
+              const gchar  *group_name,
+              guint        *port,
+              guint         default_port,
+              GError      **error)
+{
+  if (*port == 0)
+    {
+      *port = g_key_file_get_integer (config, group_name, "port", error);
+      if (*port == 0)
+        {
+          if ((*error) != NULL)
+            {
+              if (! g_error_matches (*error,
+                                     G_KEY_FILE_ERROR,
+                                     G_KEY_FILE_ERROR_KEY_NOT_FOUND))
+                {
+                  return FALSE;
+                }
+              else
+                {
+                  g_clear_error (error);
+                }
+            }
+          else
+            {
+              g_set_error (error,
+                           G_IO_ERROR,
+                           G_IO_ERROR_INVALID_ARGUMENT,
+                           "'0' is not a valid port");
+              return FALSE;
+            }
+        }
+    }
+
+  if (*port == 0)
+    *port = default_port;
+
+  return TRUE;
+}
+
+static gboolean
 setup_https_node (GKeyFile *config, GError **error)
 {
   gchar *cert_file;
@@ -192,25 +234,14 @@ setup_https_node (GKeyFile *config, GError **error)
     }
 
   /* obtain HTTPS listening port */
-  if (https_port == 0)
+  if (! resolve_port (config,
+                      "https",
+                      &https_port,
+                      DEFAULT_HTTPS_LISTEN_PORT,
+                      error))
     {
-      https_port = g_key_file_get_integer (config, "https", "port", error);
-      if (http_port == 0)
-        {
-          if (g_error_matches (*error,
-                               G_KEY_FILE_ERROR,
-                               G_KEY_FILE_ERROR_KEY_NOT_FOUND))
-            {
-              return FALSE;
-            }
-          else
-            {
-              g_clear_error (error);
-            }
-        }
+      return FALSE;
     }
-  if (https_port == 0)
-    https_port = DEFAULT_HTTPS_LISTEN_PORT;
 
   /* start listening */
   addr = g_strdup_printf ("0.0.0.0:%d", https_port);
@@ -239,25 +270,14 @@ setup_http_node (GKeyFile *config, GError **error)
     return FALSE;
 
   /* obtain HTTPS listening port */
-  if (http_port == 0)
+  if (! resolve_port (config,
+                      "http",
+                      &http_port,
+                      DEFAULT_HTTP_LISTEN_PORT,
+                      error))
     {
-      http_port = g_key_file_get_integer (config, "http", "port", error);
-      if (http_port == 0)
-        {
-          if (g_error_matches (*error,
-                               G_KEY_FILE_ERROR,
-                               G_KEY_FILE_ERROR_KEY_NOT_FOUND))
-            {
-              return FALSE;
-            }
-          else
-            {
-              g_clear_error (error);
-            }
-        }
+      return FALSE;
     }
-  if (http_port == 0)
-    https_port = DEFAULT_HTTP_LISTEN_PORT;
 
   /* start listening */
   addr = g_strdup_printf ("0.0.0.0:%d", http_port);
