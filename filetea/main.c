@@ -173,7 +173,18 @@ setup_https_node (GKeyFile *config, GError **error)
   if (dh_depth == 0)
     {
       if ((*error) != NULL)
-        return FALSE;
+        {
+          if (! g_error_matches (*error,
+                                 G_KEY_FILE_ERROR,
+                                 G_KEY_FILE_ERROR_KEY_NOT_FOUND))
+            {
+              return FALSE;
+            }
+          else
+            {
+              g_clear_error (error);
+            }
+        }
     }
   else
     {
