@@ -301,28 +301,6 @@ main (gint argc, gchar *argv[])
       goto out;
     }
 
-  /* obtain HTTP listening port from config */
-  if (http_port == 0)
-    {
-      http_port = g_key_file_get_integer (config, "http", "port", &error);
-      if (http_port == 0)
-        {
-          if (error->code != G_KEY_FILE_ERROR_KEY_NOT_FOUND)
-            {
-              g_debug ("ERROR, invalid HTTP port: %s", error->message);
-              g_error_free (error);
-
-              exit_status = -1;
-              goto out;
-            }
-
-          g_error_free (error);
-        }
-    }
-
-  if (http_port == 0)
-    http_port = DEFAULT_HTTP_LISTEN_PORT;
-
   /* main daemon */
   evd_daemon = evd_daemon_get_default (&argc, &argv);
 
