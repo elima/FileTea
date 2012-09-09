@@ -33,11 +33,29 @@ var SourceStatus = {
 Evd.Object.extend (FileSources.prototype, {
 
     _init: function (args) {
+        var self = this;
+
         this._rpcFunc = args.rpcFunc;
 
         this._files = {};
         this._regFiles = {};
         this._fileCounter = 0;
+
+        this._rpcFunc (function (rpc, error) {
+            if (error)
+                throw (error);
+
+            rpc.addEventListener ("update-file-size",
+                function (params, context) {
+                    var id = params[0];
+                    var file = self._regFiles[id];
+                    if (! file)
+                        return;
+
+                    file.size = params[1];
+                    self._fireEvent ("update-file-size", [file]);
+                });
+        });
     },
 
     add: function (files) {

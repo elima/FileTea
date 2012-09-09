@@ -51,6 +51,11 @@ Evd.Object.extend (SharedFilesView.prototype, {
                 self.setUnregistered (file.id);
             });
 
+        this._files.addEventListener ("update-file-size",
+            function (file) {
+                self._updateFileSize (file);
+            });
+
         $ ("#shared-files-selector").get (0).onchange =
             function () {
                 self._addButtonOnChange ();
@@ -212,6 +217,16 @@ Evd.Object.extend (SharedFilesView.prototype, {
 
             self._files.add (files);
         }
+    },
+
+    _updateFileSize: function (file) {
+        var item = this._items[file.id];
+        if (! item)
+            return;
+
+        var type = file.type != "" ? file.type : "unknown";
+        var size = this._utils.humanizeFileSize (file.size);
+        item.infoEl.innerHTML = size + " - " + type;
     }
 });
 

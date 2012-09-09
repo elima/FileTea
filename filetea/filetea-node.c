@@ -762,6 +762,49 @@ user_agent_is_browser (const gchar *user_agent)
     (g_strstr_len (user_agent, strlen (opera), opera) == user_agent);
 }
 
+static void
+check_file_size_changed (FileteaNode    *self,
+                         FileTransfer   *transfer,
+                         EvdHttpRequest *request)
+{
+  SoupMessageHeaders *headers;
+
+  headers = evd_http_message_get_headers (EVD_HTTP_MESSAGE (request));
+  if (soup_message_headers_get_encoding (headers) ==
+      SOUP_ENCODING_CONTENT_LENGTH)
+    {
+      gsize reported_content_len;
+
+      reported_content_len = soup_message_headers_get_content_length (headers);
+      if (reported_content_len != transfer->source->file_size)
+        {
+          JsonNode *node;
+          JsonArray *args;
+
+          transfer->source->file_size = reported_content_len;
+
+          node = json_node_new (JSON_NODE_ARRAY);
+          args = json_array_new ();
+          json_node_set_array (node, args);
+
+          json_array_add_string_element (args, transfer->source->id);
+          json_array_add_int_element (args, transfer->source->file_size);
+
+          if (! evd_jsonrpc_send_notification (self->priv->rpc,
+                                               "update-file-size",
+                                               node,
+                                               transfer->source->peer,
+                                               NULL))
+            {
+              g_warning ("Failed to send 'transfer-started' notification to peer");
+            }
+
+          json_array_unref (args);
+          json_node_free (node);
+        }
+    }
+}
+
 static gboolean
 handle_special_request (FileteaNode         *self,
                         EvdHttpConnection   *conn,
@@ -784,6 +827,9 @@ handle_special_request (FileteaNode         *self,
         {
           JsonNode *node;
           JsonArray *args;
+
+          /* check if file size has changed */
+          check_file_size_changed (self, transfer, request);
 
           file_transfer_set_source_conn (transfer, conn);
           file_transfer_start (transfer);
