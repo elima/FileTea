@@ -124,3 +124,18 @@ ul#list {
 #tabs ul#main-menu li.highlight {
     background: #E74242;
 }
+
+#donate-box {
+    float: right;
+    padding-top: 20px;
+    text-align: center;
+    font-size: 75%;
+    color: #999;
+    width: 100%;
+}
+
+#donate-box img {
+    position: relative;
+    width: 18px;
+    top: 5px;
+}
