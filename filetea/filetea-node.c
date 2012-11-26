@@ -151,7 +151,7 @@ filetea_node_init (FileteaNode *self)
   /* web selector */
   priv->selector = evd_web_selector_new ();
 
-  evd_web_transport_server_set_selector (priv->transport, priv->selector);
+  evd_web_transport_server_use_selector (priv->transport, priv->selector);
   evd_web_selector_set_default_service (priv->selector,
                                         EVD_SERVICE (priv->webdir));
 
