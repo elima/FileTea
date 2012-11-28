@@ -154,15 +154,6 @@ op_register_content (FileteaProtocol *self,
       goto out;
     }
 
-  if (! JSON_NODE_HOLDS_ARRAY (params))
-    {
-      g_set_error (&error,
-                   G_IO_ERROR,
-                   G_IO_ERROR_INVALID_ARGUMENT,
-                   "Method register expects an array of objects");
-      goto out;
-    }
-
   result_arr = json_array_new ();
 
   a = json_node_get_array (params);
