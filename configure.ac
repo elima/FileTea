@@ -78,6 +78,7 @@ AC_OUTPUT([
 	Makefile
         filetea/Makefile
         html/Makefile
+        tests/Makefile
 ])
 
 echo ""

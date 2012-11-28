@@ -1,10 +1,12 @@
 SUBDIRS = \
 	filetea \
-	html
+	html \
+	tests
 
 DIST_SUBDIRS = \
 	filetea \
-	html
+	html \
+	tests
 
 EXTRA_DIST = \
 	autogen.sh \
