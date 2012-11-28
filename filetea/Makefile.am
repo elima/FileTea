@@ -29,12 +29,14 @@ source_c = \
 	file-source.c \
 	file-transfer.c \
 	filetea-source.c \
+	filetea-protocol.c \
 	filetea-node.c
 
 source_h = \
 	file-source.h \
 	file-transfer.h \
 	filetea-source.h \
+	filetea-protocol.h \
 	filetea-node.h
 
 filetea_SOURCES = \
