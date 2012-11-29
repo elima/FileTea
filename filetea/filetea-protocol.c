@@ -167,7 +167,7 @@ op_register_content (FileteaProtocol *self,
       const gchar *name;
       const gchar *type;
       gint64 num;
-      gsize size;
+      gsize size = 0;
       guint flags = FILETEA_SOURCE_FLAGS_NONE;
       gchar **tags = NULL;
       FileteaSource *source;
@@ -222,29 +222,31 @@ op_register_content (FileteaProtocol *self,
         }
 
       /* size */
-      if (! json_object_has_member (obj, "size") ||
-          ! JSON_NODE_HOLDS_VALUE (json_object_get_member (obj, "size")))
+      if (json_object_has_member (obj, "size"))
         {
-          g_set_error (&error,
-                       G_IO_ERROR,
-                       G_IO_ERROR_INVALID_ARGUMENT,
-                       "Source object expects a 'size' member to be a number");
-          goto done;
-        }
-      else
-        {
-          num = json_object_get_int_member (obj, "size");
-          if (num < 0)
+          if (! JSON_NODE_HOLDS_VALUE (json_object_get_member (obj, "size")))
             {
               g_set_error (&error,
                            G_IO_ERROR,
                            G_IO_ERROR_INVALID_ARGUMENT,
-                           "Source size must be equal or greater than zero");
+                           "Source object expects a 'size' member to be a number");
               goto done;
             }
           else
             {
-              size = (gsize) num;
+              num = json_object_get_int_member (obj, "size");
+              if (num < 0)
+                {
+                  g_set_error (&error,
+                               G_IO_ERROR,
+                               G_IO_ERROR_INVALID_ARGUMENT,
+                               "Source size must be equal or greater than zero");
+                  goto done;
+                }
+              else
+                {
+                  size = (gsize) num;
+                }
             }
         }
 

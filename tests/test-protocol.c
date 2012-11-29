@@ -72,10 +72,11 @@ static TestCase test_cases[] =
       "  \"id\": 5,"
       "  \"params\": [ {"
       "    \"name\": \"Some content\","
-      "    \"type\": \"text/plain\""
+      "    \"type\": \"text/plain\","
+      "    \"flags\": 7"
       "  } ]"
       "}",
-      "{\"id\":5,\"error\":null,\"result\":[{\"error\":\"Source object expects a 'size' member to be a number\"}]}"
+      "{\"id\":5,\"error\":null,\"result\":[{\"error\":null,\"id\":\"1234abcd\",\"signature\":\"some secret signature\"}]}"
     },
 
     {
@@ -227,7 +228,8 @@ register_source (FileteaProtocol  *protocol,
 
   g_assert_cmpstr (filetea_source_get_name (source), ==, "Some content");
   g_assert_cmpstr (filetea_source_get_content_type (source), ==, "text/plain");
-  g_assert_cmpuint (filetea_source_get_size (source), ==, 123);
+  if (filetea_source_get_size (source) > 0)
+    g_assert_cmpuint (filetea_source_get_size (source), ==, 123);
   g_assert_cmpuint (filetea_source_get_flags (source), ==, 7);
 
   tags = filetea_source_get_tags (source);
