@@ -51,8 +51,8 @@ struct _FileteaNodeClass
 #define FILETEA_NODE_TYPE           (filetea_node_get_type ())
 #define FILETEA_NODE(obj)           (G_TYPE_CHECK_INSTANCE_CAST ((obj), FILETEA_NODE_TYPE, FileteaNode))
 #define FILETEA_NODE_CLASS(obj)     (G_TYPE_CHECK_CLASS_CAST ((obj), FILETEA_NODE_TYPE, FileteaNodeClass))
-#define IS_FILETEA_NODE(obj)        (G_TYPE_CHECK_INSTANCE_TYPE ((obj), FILETEA_NODE_TYPE))
-#define IS_FILETEA_NODE_CLASS(obj)  (G_TYPE_CHECK_CLASS_TYPE ((obj), FILETEA_NODE_TYPE))
+#define FILETEA_IS_NODE(obj)        (G_TYPE_CHECK_INSTANCE_TYPE ((obj), FILETEA_NODE_TYPE))
+#define FILETEA_IS_NODE_CLASS(obj)  (G_TYPE_CHECK_CLASS_TYPE ((obj), FILETEA_NODE_TYPE))
 #define FILETEA_NODE_GET_CLASS(obj) (G_TYPE_INSTANCE_GET_CLASS ((obj), FILETEA_NODE_TYPE, FileteaNodeClass))
 
 

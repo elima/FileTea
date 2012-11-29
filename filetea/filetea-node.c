@@ -1368,7 +1368,7 @@ filetea_node_new (GKeyFile *config, GError **error)
 const gchar *
 filetea_node_get_id (FileteaNode *self)
 {
-  g_return_val_if_fail (IS_FILETEA_NODE (self), NULL);
+  g_return_val_if_fail (FILETEA_IS_NODE (self), NULL);
 
   return self->priv->id;
 }
