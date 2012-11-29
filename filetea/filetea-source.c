@@ -32,12 +32,13 @@ G_DEFINE_TYPE (FileteaSource, filetea_source, G_TYPE_OBJECT)
 struct _FileteaSourcePrivate
 {
   gchar *id;
-  EvdPeer *peer;
   guint flags;
   gchar *name;
   gchar *type;
   gsize size;
   gchar **tags;
+
+  GList *peers;
 };
 
 static void     filetea_source_class_init         (FileteaSourceClass *class);
@@ -66,6 +67,7 @@ filetea_source_init (FileteaSource *self)
   self->priv = priv;
 
   priv->tags = NULL;
+  priv->peers = NULL;
 }
 
 static void
@@ -73,10 +75,10 @@ filetea_source_dispose (GObject *obj)
 {
   FileteaSource *self = FILETEA_SOURCE (obj);
 
-  if (self->priv->peer != NULL)
+  if (self->priv->peers != NULL)
     {
-      g_object_unref (self->priv->peer);
-      self->priv->peer = NULL;
+      g_list_free_full (self->priv->peers, g_object_unref);
+      self->priv->peers = NULL;
     }
 
   G_OBJECT_CLASS (filetea_source_parent_class)->dispose (obj);
@@ -98,8 +100,7 @@ filetea_source_finalize (GObject *obj)
 /* public methods */
 
 FileteaSource *
-filetea_source_new (EvdPeer      *peer,
-                    const gchar  *name,
+filetea_source_new (const gchar  *name,
                     const gchar  *type,
                     gsize         size,
                     guint         flags,
@@ -107,14 +108,10 @@ filetea_source_new (EvdPeer      *peer,
 {
   FileteaSource *self;
 
-  g_return_val_if_fail (EVD_IS_PEER (peer), NULL);
   g_return_val_if_fail (name != NULL, NULL);
   g_return_val_if_fail (type != NULL, NULL);
 
   self = g_object_new (FILETEA_SOURCE_TYPE, NULL);
-
-  self->priv->peer = peer;
-  g_object_ref (peer);
 
   self->priv->name = g_strdup (name);
   self->priv->type = g_strdup (type);
@@ -164,4 +161,30 @@ filetea_source_get_tags (FileteaSource *self)
   g_return_val_if_fail (FILETEA_IS_SOURCE (self), 0);
 
   return (const gchar **) self->priv->tags;
+}
+
+void
+filetea_source_add_peer (FileteaSource *self, EvdPeer *peer)
+{
+  g_return_if_fail (FILETEA_IS_SOURCE (self));
+  g_return_if_fail (EVD_IS_PEER (peer));
+
+  if (g_list_find (self->priv->peers, peer) == NULL)
+    {
+      self->priv->peers = g_list_append (self->priv->peers, peer);
+      g_object_ref (peer);
+    }
+}
+
+void
+filetea_source_remove_peer (FileteaSource *self, EvdPeer *peer)
+{
+  g_return_if_fail (FILETEA_IS_SOURCE (self));
+  g_return_if_fail (EVD_IS_PEER (peer));
+
+  if (g_list_find (self->priv->peers, peer) != NULL)
+    {
+      self->priv->peers = g_list_remove (self->priv->peers, peer);
+      g_object_unref (peer);
+    }
 }

@@ -64,8 +64,7 @@ struct _FileteaSourceClass
 
 GType             filetea_source_get_type                (void) G_GNUC_CONST;
 
-FileteaSource *   filetea_source_new                     (EvdPeer      *peer,
-                                                          const gchar  *name,
+FileteaSource *   filetea_source_new                     (const gchar  *name,
                                                           const gchar  *type,
                                                           gsize         size,
                                                           guint         flags,
@@ -76,6 +75,11 @@ const gchar *     filetea_source_get_content_type        (FileteaSource  *self);
 gsize             filetea_source_get_size                (FileteaSource  *self);
 guint             filetea_source_get_flags               (FileteaSource  *self);
 const gchar **    filetea_source_get_tags                (FileteaSource  *self);
+
+void              filetea_source_add_peer                (FileteaSource *self,
+                                                          EvdPeer       *peer);
+void              filetea_source_remove_peer             (FileteaSource *self,
+                                                          EvdPeer       *peer);
 
 G_END_DECLS
 
