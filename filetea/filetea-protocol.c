@@ -28,12 +28,14 @@ G_DEFINE_TYPE (FileteaProtocol, filetea_protocol, G_TYPE_OBJECT)
                                            FILETEA_TYPE_PROTOCOL, \
                                            FileteaProtocolPrivate))
 
-#define OP_REGISTER "register"
+#define OP_REGISTER   "register"
+#define OP_UNREGISTER "unregister"
 
 typedef enum
 {
   OPERATION_INVALID,
-  OPERATION_REGISTER
+  OPERATION_REGISTER,
+  OPERATION_UNREGISTER
 } FileteaProtocolOperations;
 
 /* private data */
@@ -353,7 +355,104 @@ op_register_content (FileteaProtocol *self,
  out:
   if (error != NULL)
     {
-      g_print ("ERROR: %s\n", error->message);
+      evd_jsonrpc_respond_from_error (self->priv->rpc,
+                                      invocation_id,
+                                      error,
+                                      context,
+                                      NULL);
+      g_error_free (error);
+    }
+  else
+    {
+      JsonNode *result;
+
+      result = json_node_new (JSON_NODE_ARRAY);
+      json_node_set_array (result, result_arr);
+
+      evd_jsonrpc_respond (self->priv->rpc,
+                           invocation_id,
+                           result,
+                           context,
+                           NULL);
+
+      json_node_free (result);
+      if (result_arr != NULL)
+        json_array_unref (result_arr);
+    }
+}
+
+static void
+op_unregister_content (FileteaProtocol *self,
+                       JsonNode        *params,
+                       guint            invocation_id,
+                       gpointer         context)
+{
+  JsonArray *items;
+  gint i;
+  GError *error = NULL;
+
+  JsonArray *result_arr = NULL;
+
+  if (self->priv->vtable->unregister_source == NULL)
+    {
+      g_set_error (&error,
+                   G_IO_ERROR,
+                   G_IO_ERROR_NOT_SUPPORTED,
+                   "'unregister' operation not implemented");
+      goto out;
+    }
+
+  result_arr = json_array_new ();
+
+  items = json_node_get_array (params);
+  for (i=0; i<json_array_get_length (items); i++)
+    {
+      JsonNode *node;
+      const gchar *source_id;
+      JsonObject *reg_node_obj;
+
+      reg_node_obj = json_object_new ();
+
+      node = json_array_get_element (items, i);
+
+      if (! JSON_NODE_HOLDS_VALUE (node) ||
+          json_node_get_string (node) == NULL ||
+          strlen (json_node_get_string (node)) == 0)
+        {
+          g_set_error (&error,
+                       G_IO_ERROR,
+                       G_IO_ERROR_INVALID_ARGUMENT,
+                       "Unregister expects an array of source id strings");
+          goto done;
+        }
+
+      source_id = json_node_get_string (node);
+
+      /* call 'unregister_source' virtual method */
+      self->priv->vtable->unregister_source (self,
+                                             EVD_PEER (context),
+                                             source_id,
+                                             self->priv->user_data);
+
+      /* fill the registration object to respond */
+      /* for security reasons, we always return TRUE even if the unregistration
+         returned FALSE */
+      json_object_set_boolean_member (reg_node_obj, "result", TRUE);
+
+    done:
+      if (error != NULL)
+        {
+          json_object_set_string_member (reg_node_obj, "error", error->message);
+          g_clear_error (&error);
+        }
+
+      /* add the registration object to the response list */
+      json_array_add_object_element (result_arr, reg_node_obj);
+    }
+
+ out:
+  if (error != NULL)
+    {
       evd_jsonrpc_respond_from_error (self->priv->rpc,
                                       invocation_id,
                                       error,
@@ -393,6 +492,10 @@ rpc_on_method_called (EvdJsonrpc  *jsonrpc,
   if (g_strcmp0 (method_name, OP_REGISTER) == 0)
     {
       op_register_content (self, params, invocation_id, context);
+    }
+  else if (g_strcmp0 (method_name, OP_UNREGISTER) == 0)
+    {
+      op_unregister_content (self, params, invocation_id, context);
     }
 }
 

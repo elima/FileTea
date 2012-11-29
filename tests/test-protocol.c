@@ -165,6 +165,58 @@ static TestCase test_cases[] =
       "{\"id\":5,\"error\":null,\"result\":[{\"error\":null,\"id\":\"1234abcd\",\"signature\":\"some secret signature\"},{\"error\":null,\"id\":\"1234abcd\",\"signature\":\"some secret signature\"}]}"
     },
 
+    {
+      "unregister/ok",
+      0,
+      "{"
+      "  \"method\": \"unregister\","
+      "  \"id\": 5,"
+      "  \"params\": ["
+      "      \"abcd1234\""
+      "  ]"
+      "}",
+      "{\"id\":5,\"error\":null,\"result\":[{\"result\":true}]}"
+    },
+
+    {
+      "unregister/error/id-not-string",
+      0,
+      "{"
+      "  \"method\": \"unregister\","
+      "  \"id\": 5,"
+      "  \"params\": ["
+      "      1234567"
+      "  ]"
+      "}",
+      "{\"id\":5,\"error\":null,\"result\":[{\"error\":\"Unregister expects an array of source id strings\"}]}"
+    },
+
+    {
+      "unregister/error/id-is-empty",
+      0,
+      "{"
+      "  \"method\": \"unregister\","
+      "  \"id\": 5,"
+      "  \"params\": ["
+      "      \"\""
+      "  ]"
+      "}",
+      "{\"id\":5,\"error\":null,\"result\":[{\"error\":\"Unregister expects an array of source id strings\"}]}"
+    },
+
+    {
+      "unregister/ok/multiple",
+      0,
+      "{"
+      "  \"method\": \"unregister\","
+      "  \"id\": 5,"
+      "  \"params\": ["
+      "      \"abcd1234\","
+      "      \"abcd1234\""
+      "  ]"
+      "}",
+      "{\"id\":5,\"error\":null,\"result\":[{\"result\":true},{\"result\":true}]}"
+    },
 
   };
 
@@ -180,6 +232,10 @@ static void            register_source             (FileteaProtocol  *protocol,
                                                     gchar           **id,
                                                     gchar           **signature,
                                                     gpointer          user_data);
+static gboolean        unregister_source           (FileteaProtocol *protocol,
+                                                    EvdPeer         *peer,
+                                                    const gchar     *id,
+                                                    gpointer         user_data);
 
 static void
 fixture_setup (Fixture       *f,
@@ -188,6 +244,7 @@ fixture_setup (Fixture       *f,
   EvdWebTransportServer *transport;
 
   f->vtable.register_source = register_source;
+  f->vtable.unregister_source = unregister_source;
   f->protocol = filetea_protocol_new (&f->vtable, f, NULL);
 
   transport = evd_web_transport_server_new (NULL);
@@ -246,6 +303,20 @@ register_source (FileteaProtocol  *protocol,
   *signature = g_strdup ("some secret signature");
 
   g_object_unref (source);
+}
+
+static gboolean
+unregister_source (FileteaProtocol *protocol,
+                   EvdPeer         *peer,
+                   const gchar     *id,
+                   gpointer         user_data)
+{
+  Fixture *f = user_data;
+
+  g_assert (peer == f->peer);
+  g_assert_cmpstr (id, ==, "abcd1234");
+
+  return TRUE;
 }
 
 static void

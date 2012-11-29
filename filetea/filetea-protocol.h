@@ -35,11 +35,15 @@ typedef struct _FileteaProtocolPrivate FileteaProtocolPrivate;
 
 typedef struct
 {
-  void (* register_source) (FileteaProtocol  *self,
-                            FileteaSource   *source,
-                            gchar           **id,
-                            gchar           **signature,
-                            gpointer          user_data);
+  void     (* register_source)   (FileteaProtocol  *self,
+                                  FileteaSource   *source,
+                                  gchar           **id,
+                                  gchar           **signature,
+                                  gpointer          user_data);
+  gboolean (* unregister_source) (FileteaProtocol  *self,
+                                  EvdPeer          *peer,
+                                  const gchar      *id,
+                                  gpointer          user_data);
 
 } FileteaProtocolVTable;
 
