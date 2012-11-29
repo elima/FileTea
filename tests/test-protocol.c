@@ -284,6 +284,8 @@ register_source (FileteaProtocol  *protocol,
   const gchar **tags;
 
   g_assert (FILETEA_IS_PROTOCOL (protocol));
+  g_assert (protocol == f->protocol);
+
   g_assert (FILETEA_IS_SOURCE (source));
 
   g_assert (EVD_IS_PEER (peer));
@@ -319,15 +321,20 @@ unregister_source (FileteaProtocol *protocol,
 {
   Fixture *f = user_data;
 
+  g_assert (FILETEA_IS_PROTOCOL (protocol));
+  g_assert (protocol == f->protocol);
+
+  g_assert (EVD_IS_PEER (peer));
   g_assert (peer == f->peer);
+
   g_assert_cmpstr (id, ==, "abcd1234");
 
   return TRUE;
 }
 
 static void
-test_register (Fixture       *f,
-               gconstpointer  data)
+test_func (Fixture       *f,
+           gconstpointer  data)
 {
   EvdJsonrpc *rpc;
   GError *error = NULL;
@@ -374,7 +381,7 @@ main (gint argc, gchar *argv[])
                   Fixture,
                   &test_cases[i],
                   fixture_setup,
-                  test_register,
+                  test_func,
                   fixture_teardown);
 
       g_free (test_path);
