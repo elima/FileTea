@@ -228,6 +228,7 @@ typedef struct
 } Fixture;
 
 static void            register_source             (FileteaProtocol  *protocol,
+                                                    EvdPeer          *peer,
                                                     FileteaSource    *source,
                                                     gchar           **id,
                                                     gchar           **signature,
@@ -273,15 +274,20 @@ test_new (Fixture       *f,
 
 static void
 register_source (FileteaProtocol  *protocol,
+                 EvdPeer          *peer,
                  FileteaSource    *source,
                  gchar           **id,
                  gchar           **signature,
                  gpointer          user_data)
 {
+  Fixture *f = user_data;
   const gchar **tags;
 
   g_assert (FILETEA_IS_PROTOCOL (protocol));
   g_assert (FILETEA_IS_SOURCE (source));
+
+  g_assert (EVD_IS_PEER (peer));
+  g_assert (peer == f->peer);
 
   g_assert_cmpstr (filetea_source_get_name (source), ==, "Some content");
   g_assert_cmpstr (filetea_source_get_content_type (source), ==, "text/plain");

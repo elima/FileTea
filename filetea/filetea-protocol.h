@@ -36,6 +36,7 @@ typedef struct _FileteaProtocolPrivate FileteaProtocolPrivate;
 typedef struct
 {
   void     (* register_source)   (FileteaProtocol  *self,
+                                  EvdPeer          *peer,
                                   FileteaSource   *source,
                                   gchar           **id,
                                   gchar           **signature,

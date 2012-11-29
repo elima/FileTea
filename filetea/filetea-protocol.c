@@ -327,6 +327,7 @@ op_register_content (FileteaProtocol *self,
 
       /* call 'register_source' virtual method */
       self->priv->vtable->register_source (self,
+                                           EVD_PEER (context),
                                            source,
                                            &id,
                                            &signature,
