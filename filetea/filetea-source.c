@@ -65,6 +65,7 @@ filetea_source_init (FileteaSource *self)
   priv = FILETEA_SOURCE_GET_PRIVATE (self);
   self->priv = priv;
 
+  priv->id = NULL;
   priv->tags = NULL;
 }
 
