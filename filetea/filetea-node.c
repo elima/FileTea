@@ -53,7 +53,7 @@ struct _FileteaNodePrivate
   gchar *id;
   guint8 source_id_start_depth;
 
-  FileteaProtocolVTable vtable;
+  FileteaProtocolVTable protocol_vtable;
   FileteaProtocol *protocol;
 
   EvdPeerManager *peer_manager;
@@ -83,6 +83,20 @@ static void     filetea_node_init               (FileteaNode *self);
 
 static void     filetea_node_finalize           (GObject *obj);
 static void     filetea_node_dispose            (GObject *obj);
+
+static void     register_source                 (FileteaProtocol  *protocol,
+                                                 EvdPeer          *peer,
+                                                 FileteaSource    *source,
+                                                 gchar           **id,
+                                                 gchar           **signature,
+                                                 gpointer          user_data);
+static gboolean unregister_source               (FileteaProtocol *protocol,
+                                                 EvdPeer         *peer,
+                                                 const gchar     *id,
+                                                 gboolean         gracefully,
+                                                 gpointer         user_data);
+
+
 
 static void     on_new_peer                     (EvdPeerManager *self,
                                                  EvdPeer        *peer,
@@ -130,10 +144,34 @@ filetea_node_init (FileteaNode *self)
   self->priv = priv;
 
   /* protocol */
-  priv->protocol = filetea_protocol_new (&self->priv->vtable, self, NULL);
+  priv->protocol = filetea_protocol_new (&self->priv->protocol_vtable,
+                                         self,
+                                         NULL);
+
+  /* fill protocol's virtual table */
+  priv->protocol_vtable.register_source = register_source;
+  priv->protocol_vtable.unregister_source = unregister_source;
 
   /* web transport */
   priv->transport = evd_web_transport_server_new (NULL);
+
+  /* associate protocol's RPC with transport */
+  evd_jsonrpc_use_transport (filetea_protocol_get_rpc (priv->protocol),
+                             EVD_TRANSPORT (priv->transport));
+
+  /* hash tables for indexing sources */
+  self->priv->sources_by_id =
+    g_hash_table_new_full (g_str_hash,
+                           g_str_equal,
+                           g_free,
+                           g_object_unref);
+  self->priv->sources_by_peer =
+    g_hash_table_new_full (g_direct_hash,
+                           g_direct_equal,
+                           NULL,
+                           (GDestroyNotify) g_hash_table_unref);
+
+
 
   /* JSON-RPC */
   priv->rpc = evd_jsonrpc_new ();
@@ -176,18 +214,6 @@ filetea_node_init (FileteaNode *self)
                     "peer-closed",
                     G_CALLBACK (on_peer_closed),
                     self);
-
-  /* hash tables for indexing file sources */
-  self->priv->sources_by_id =
-    g_hash_table_new_full (g_str_hash,
-                           g_str_equal,
-                           NULL,
-                           (GDestroyNotify) file_source_unref);
-  self->priv->sources_by_peer =
-    g_hash_table_new_full (g_direct_hash,
-                           g_direct_equal,
-                           NULL,
-                           (GDestroyNotify) g_hash_table_unref);
 
   /* hash tables for indexing file transfers */
   self->priv->transfers_by_id =
@@ -345,6 +371,89 @@ generate_source_id (FileteaNode *self, const gchar *instance_id)
     }
 
   return id;
+}
+
+static void
+register_source (FileteaProtocol  *protocol,
+                 EvdPeer          *peer,
+                 FileteaSource    *source,
+                 gchar           **id,
+                 gchar           **signature,
+                 gpointer          user_data)
+{
+  FileteaNode *self = FILETEA_NODE (user_data);
+  GHashTable *sources_of_peer;
+  gchar *source_id;
+
+  /* create a fresh source id */
+  source_id = generate_source_id (self, self->priv->id);
+
+  /* store id in source object */
+  filetea_source_set_id (source, source_id);
+
+  /* fill 'sources_by_id' table */
+  g_hash_table_insert (self->priv->sources_by_id, source_id, source);
+
+  /* fill 'sources_by_peer' table */
+  sources_of_peer = g_hash_table_lookup (self->priv->sources_by_peer, peer);
+  if (sources_of_peer == NULL)
+    {
+      sources_of_peer =
+        g_hash_table_new_full (g_str_hash,
+                               g_str_equal,
+                               NULL,
+                               g_object_unref);
+      g_hash_table_insert (self->priv->sources_by_peer, peer, sources_of_peer);
+    }
+  g_object_ref (source);
+  g_hash_table_insert (sources_of_peer, source_id, source);
+
+  /* @TODO: if source is public, index it */
+
+  /* @TODO: write corresponding entry in filetea log file */
+
+  /* return a copy of the source id to the protocol */
+  *id = g_strdup (source_id);
+
+  /* @TODO: create a signature for this source and return it to the protocol */
+  *signature = NULL;
+}
+
+static gboolean
+unregister_source (FileteaProtocol *protocol,
+                   EvdPeer         *peer,
+                   const gchar     *id,
+                   gboolean         gracefully,
+                   gpointer         user_data)
+{
+  FileteaNode *self = FILETEA_NODE (user_data);
+  FileteaSource *source;
+  GHashTable *sources_of_peer;
+
+  /* find source to unregister */
+  source = g_hash_table_lookup (self->priv->sources_by_id, id);
+  if (source == NULL)
+    return FALSE;
+
+  /* check that the peer unregistering is the owner of the source */
+  if (peer != filetea_source_get_peer (source))
+    {
+      /* @TODO: buggy client or possible attack, log acordingly */
+      return FALSE;
+    }
+
+  /* remove source */
+  g_hash_table_remove (self->priv->sources_by_id, id);
+  sources_of_peer = g_hash_table_lookup (self->priv->sources_by_peer, peer);
+  g_hash_table_remove (sources_of_peer, id);
+
+  /* @TODO: if source was public, un-index it */
+
+  /* @TODO: if unregistration is not 'graceful', abort related transfers */
+
+  /* @TODO: write corresponding entry in filetea log file */
+
+  return TRUE;
 }
 
 static FileSource *
