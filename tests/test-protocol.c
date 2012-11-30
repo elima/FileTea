@@ -171,9 +171,9 @@ static TestCase test_cases[] =
       "{"
       "  \"method\": \"unregister\","
       "  \"id\": 5,"
-      "  \"params\": ["
-      "      \"abcd1234\""
-      "  ]"
+      "  \"params\": [ {"
+      "      \"id\": \"abcd1234\""
+      "  } ]"
       "}",
       "{\"id\":5,\"error\":null,\"result\":[{\"result\":true}]}"
     },
@@ -184,11 +184,11 @@ static TestCase test_cases[] =
       "{"
       "  \"method\": \"unregister\","
       "  \"id\": 5,"
-      "  \"params\": ["
-      "      1234567"
-      "  ]"
+      "  \"params\": [ {"
+      "      \"id\": 12345678"
+      "  } ]"
       "}",
-      "{\"id\":5,\"error\":null,\"result\":[{\"error\":\"Unregister expects an array of source id strings\"}]}"
+      "{\"id\":5,\"error\":null,\"result\":[{\"error\":\"Source id must be a valid string\"}]}"
     },
 
     {
@@ -197,11 +197,11 @@ static TestCase test_cases[] =
       "{"
       "  \"method\": \"unregister\","
       "  \"id\": 5,"
-      "  \"params\": ["
-      "      \"\""
-      "  ]"
+      "  \"params\": [ {"
+      "      \"id\": \"\""
+      "  } ]"
       "}",
-      "{\"id\":5,\"error\":null,\"result\":[{\"error\":\"Unregister expects an array of source id strings\"}]}"
+      "{\"id\":5,\"error\":null,\"result\":[{\"error\":\"Source id must be a valid string\"}]}"
     },
 
     {
@@ -210,10 +210,11 @@ static TestCase test_cases[] =
       "{"
       "  \"method\": \"unregister\","
       "  \"id\": 5,"
-      "  \"params\": ["
-      "      \"abcd1234\","
-      "      \"abcd1234\""
-      "  ]"
+      "  \"params\": [ {"
+      "      \"id\": \"abcd1234\""
+      "  }, {"
+      "      \"id\": \"abcd1234\""
+      "  } ]"
       "}",
       "{\"id\":5,\"error\":null,\"result\":[{\"result\":true},{\"result\":true}]}"
     },
@@ -236,6 +237,7 @@ static void            register_source             (FileteaProtocol  *protocol,
 static gboolean        unregister_source           (FileteaProtocol *protocol,
                                                     EvdPeer         *peer,
                                                     const gchar     *id,
+                                                    gboolean         gracefully,
                                                     gpointer         user_data);
 
 static void
@@ -317,6 +319,7 @@ static gboolean
 unregister_source (FileteaProtocol *protocol,
                    EvdPeer         *peer,
                    const gchar     *id,
+                   gboolean         gracefully,
                    gpointer         user_data)
 {
   Fixture *f = user_data;
