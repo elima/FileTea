@@ -3,7 +3,7 @@
  *
  * FileTea, low-friction file sharing <http://filetea.net>
  *
- * Copyright (C) 2011, Igalia S.L.
+ * Copyright (C) 2011-2012, Igalia S.L.
  *
  * Authors:
  *   Eduardo Lima Mitev <elima@igalia.com>
@@ -23,8 +23,9 @@
 #ifndef __FILETEA_NODE_H__
 #define __FILETEA_NODE_H__
 
-#include <glib-object.h>
 #include <evd.h>
+
+#include <filetea-protocol.h>
 
 G_BEGIN_DECLS
 
@@ -62,6 +63,12 @@ FileteaNode *     filetea_node_new                     (GKeyFile  *config,
                                                         GError   **error);
 
 const gchar *     filetea_node_get_id                  (FileteaNode  *self);
+
+#ifdef ENABLE_TESTS
+
+FileteaProtocol * filetea_node_get_protocol            (FileteaNode *self);
+
+#endif /* ENABLE_TESTS */
 
 G_END_DECLS
 

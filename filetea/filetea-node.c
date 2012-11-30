@@ -53,6 +53,9 @@ struct _FileteaNodePrivate
   gchar *id;
   guint8 source_id_start_depth;
 
+  FileteaProtocolVTable vtable;
+  FileteaProtocol *protocol;
+
   EvdPeerManager *peer_manager;
   EvdJsonrpc *rpc;
   EvdWebTransportServer *transport;
@@ -125,6 +128,9 @@ filetea_node_init (FileteaNode *self)
 
   priv = FILETEA_NODE_GET_PRIVATE (self);
   self->priv = priv;
+
+  /* protocol */
+  priv->protocol = filetea_protocol_new (&self->priv->vtable, self, NULL);
 
   /* web transport */
   priv->transport = evd_web_transport_server_new (NULL);
@@ -256,6 +262,8 @@ filetea_node_finalize (GObject *obj)
   FileteaNode *self = FILETEA_NODE (obj);
 
   g_free (self->priv->id);
+
+  g_object_unref (self->priv->protocol);
 
   g_object_unref (self->priv->rpc);
   g_object_unref (self->priv->transport);
@@ -1372,3 +1380,15 @@ filetea_node_get_id (FileteaNode *self)
 
   return self->priv->id;
 }
+
+#ifdef ENABLE_TESTS
+
+FileteaProtocol *
+filetea_node_get_protocol (FileteaNode *self)
+{
+  g_return_val_if_fail (FILETEA_IS_NODE (self), NULL);
+
+  return self->priv->protocol;
+}
+
+#endif /* ENABLE_TESTS */
