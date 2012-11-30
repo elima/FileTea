@@ -318,7 +318,8 @@ op_register_content (FileteaProtocol *self,
         }
 
       /* create source */
-      source = filetea_source_new (name,
+      source = filetea_source_new (EVD_PEER (context),
+                                   name,
                                    type,
                                    size,
                                    flags,

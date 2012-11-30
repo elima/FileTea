@@ -37,7 +37,7 @@ typedef struct
 {
   void     (* register_source)   (FileteaProtocol  *self,
                                   EvdPeer          *peer,
-                                  FileteaSource   *source,
+                                  FileteaSource    *source,
                                   gchar           **id,
                                   gchar           **signature,
                                   gpointer          user_data);
