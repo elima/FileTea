@@ -305,11 +305,9 @@ op_register_content (FileteaProtocol *self,
               for (j=0; j<len; j++)
                 {
                   node = json_array_get_element (json_tags, j);
-                  if (! JSON_NODE_HOLDS_VALUE (node))
-                    {
-                      /* @TODO */
-                    }
-                  else
+                  if (JSON_NODE_HOLDS_VALUE (node) &&
+                      json_node_get_string (node) != NULL &&
+                      strlen (json_node_get_string (node)) > 0)
                     {
                       tags[j] = g_strdup (json_node_get_string (node));
                     }
