@@ -407,16 +407,30 @@ op_unregister_content (FileteaProtocol *self,
   for (i=0; i<json_array_get_length (items); i++)
     {
       JsonNode *node;
+      JsonObject *obj;
+
       const gchar *source_id;
       JsonObject *reg_node_obj;
+      gboolean gracefully = FALSE;
 
       reg_node_obj = json_object_new ();
 
       node = json_array_get_element (items, i);
 
-      if (! JSON_NODE_HOLDS_VALUE (node) ||
-          json_node_get_string (node) == NULL ||
-          strlen (json_node_get_string (node)) == 0)
+      if (! JSON_NODE_HOLDS_OBJECT (node))
+        {
+          g_set_error (&error,
+                       G_IO_ERROR,
+                       G_IO_ERROR_INVALID_ARGUMENT,
+                       "Method unregister expects an array of objects");
+          goto done;
+        }
+
+      obj = json_node_get_object (node);
+
+      /* source id */
+      if (! json_object_has_member (obj, "id") ||
+          ! JSON_NODE_HOLDS_VALUE (json_object_get_member (obj, "id")))
         {
           g_set_error (&error,
                        G_IO_ERROR,
@@ -424,13 +438,41 @@ op_unregister_content (FileteaProtocol *self,
                        "Unregister expects an array of source id strings");
           goto done;
         }
+      else
+        {
+          source_id = json_object_get_string_member (obj, "id");
+          if (source_id == NULL || strlen (source_id) == 0)
+            {
+              g_set_error (&error,
+                           G_IO_ERROR,
+                           G_IO_ERROR_INVALID_ARGUMENT,
+                           "Source id must be a valid string");
+              goto done;
+            }
+        }
 
-      source_id = json_node_get_string (node);
+      /* force */
+      if (json_object_has_member (obj, "force"))
+        {
+          if (! JSON_NODE_HOLDS_VALUE (json_object_get_member (obj, "force")))
+            {
+              g_set_error (&error,
+                           G_IO_ERROR,
+                           G_IO_ERROR_INVALID_ARGUMENT,
+                           "Argument 'force' must be boolean");
+              goto done;
+            }
+          else
+            {
+              gracefully = ! json_object_get_boolean_member (obj, "force");
+            }
+        }
 
       /* call 'unregister_source' virtual method */
       self->priv->vtable->unregister_source (self,
                                              EVD_PEER (context),
                                              source_id,
+                                             gracefully,
                                              self->priv->user_data);
 
       /* fill the registration object to respond */

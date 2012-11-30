@@ -44,6 +44,7 @@ typedef struct
   gboolean (* unregister_source) (FileteaProtocol  *self,
                                   EvdPeer          *peer,
                                   const gchar      *id,
+                                  gboolean          gracefully,
                                   gpointer          user_data);
 
 } FileteaProtocolVTable;
