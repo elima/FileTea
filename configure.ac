@@ -2,7 +2,7 @@
 #
 # FileTea, low-friction file sharing <http://filetea.net>
 #
-# Copyright (C) 2011, Igalia S.L.
+# Copyright (C) 2011-2013, Igalia S.L.
 #
 # Authors:
 #   Eduardo Lima Mitev <elima@igalia.com>
@@ -26,7 +26,7 @@ m4_define([prj_home],       [http://filetea.com])
 
 m4_define([prj_version_major], [0])
 m4_define([prj_version_minor], [1])
-m4_define([prj_version_micro], [12])
+m4_define([prj_version_micro], [14])
 
 m4_define([prj_version],
           [prj_version_major.prj_version_minor.prj_version_micro])
