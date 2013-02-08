@@ -3,7 +3,7 @@
  *
  * FileTea, low-friction file sharing <http://filetea.net>
  *
- * Copyright (C) 2011, Igalia S.L.
+ * Copyright (C) 2011-2013, Igalia S.L.
  *
  * Authors:
  *   Eduardo Lima Mitev <elima@igalia.com>
@@ -19,6 +19,8 @@
  * Affero General Public License at http://www.gnu.org/licenses/agpl.html
  * for more details.
  */
+
+#include <uuid/uuid.h>
 
 #include "filetea-node.h"
 #include "file-source.h"
@@ -292,9 +294,30 @@ filetea_node_finalize (GObject *obj)
 }
 
 static gchar *
+generate_random_source_id (const gchar *prefix, gsize len)
+{
+  gchar *id;
+  uuid_t uuid;
+  gchar *id_rnd;
+  gint i;
+
+  uuid_generate (uuid);
+  id_rnd = g_base64_encode (uuid, len);
+  id = g_strconcat (prefix, id_rnd, NULL);
+  g_free (id_rnd);
+
+  for (i=0; id[i] != '\0'; i++)
+    if (id[i] == '/' || id[i] == '+')
+      id[i] = 'x';
+    else if (id[i] == '=')
+      id[i] = '\0';
+
+  return id;
+}
+
+static gchar *
 generate_source_id (FileteaNode *self, const gchar *instance_id)
 {
-  gchar *uuid;
   gchar *id;
   static gint depth;
   gint _depth;
@@ -306,13 +329,10 @@ generate_source_id (FileteaNode *self, const gchar *instance_id)
 
   fails = 0;
 
-  uuid = evd_uuid_new ();
-  uuid[_depth] = '\0';
-  id = g_strconcat (instance_id, uuid, NULL);
+  id = generate_random_source_id (instance_id, _depth);
 
   while (g_hash_table_lookup (self->priv->sources_by_id, id) != NULL)
     {
-      g_free (uuid);
       g_free (id);
 
       fails++;
@@ -323,12 +343,8 @@ generate_source_id (FileteaNode *self, const gchar *instance_id)
           fails = 0;
         }
 
-      uuid = evd_uuid_new ();
-      uuid[_depth] = '\0';
-      id = g_strconcat (instance_id, uuid, NULL);
+      id = generate_random_source_id (instance_id, _depth);
     }
-
-  g_free (uuid);
 
   return id;
 }
@@ -1290,7 +1306,7 @@ load_config (FileteaNode *self, GKeyFile *config)
     self->priv->source_id_start_depth = DEFAULT_SOURCE_ID_START_DEPTH;
   else
     self->priv->source_id_start_depth =
-      MAX (self->priv->source_id_start_depth, strlen (self->priv->id) + 1);
+      MIN (self->priv->source_id_start_depth, 16 + strlen (self->priv->id));
 
   /* global bandwidth limites */
   set_max_node_bandwidth (self,
