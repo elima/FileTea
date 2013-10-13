@@ -9,6 +9,7 @@ filetea_CFLAGS = \
 	-Wall \
 	$(EVD_CFLAGS) \
 	$(JSON_CFLAGS) \
+	$(UUID_CFLAGS) \
 	-DENABLE_TESTS="\"$(enable_tests)\"" \
 	-DHTML_DATA_DIR="\"$(htmldatadir)\""
 
@@ -21,6 +22,7 @@ endif
 filetea_LDADD = \
 	$(EVD_LIBS) \
 	$(JSON_LIBS) \
+	$(UUID_LIBS) \
 	-lgcrypt
 
 source_c = \
