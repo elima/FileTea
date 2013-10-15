@@ -300,7 +300,6 @@ main (gint argc, gchar *argv[])
   GOptionContext *context = NULL;
   gchar *pid_file;
 
-  g_type_init ();
   evd_tls_init (NULL);
 
   /* parse command line args */
