@@ -47,8 +47,8 @@ EXTRA_DIST = 							\
 	$(NULL)
 
 install-data-local:
-	$(INSTALL) -d "$(DESTDIR)/$(htmldefaultdir)"
-	cp -r "$(srcdir)/default/jquery-ui" "$(DESTDIR)/$(htmldefaultdir)"
+	$(INSTALL) -d "$(htmldefaultdir)"
+	cp -r "$(top_srcdir)/html/default/jquery-ui" "$(htmldefaultdir)"
 
 uninstall-local:
 	find "$(DESTDIR)/$(htmldefaultdir)" -type d -exec chmod 755 {} \;
