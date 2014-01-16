@@ -30,6 +30,8 @@ source_c = \
 	file-transfer.c \
 	filetea-source.c \
 	filetea-protocol.c \
+	filetea-web-service.c \
+	filetea-transfer.c \
 	filetea-node.c
 
 source_h = \
@@ -37,6 +39,8 @@ source_h = \
 	file-transfer.h \
 	filetea-source.h \
 	filetea-protocol.h \
+	filetea-web-service.h \
+	filetea-transfer.h \
 	filetea-node.h
 
 filetea_SOURCES = \
