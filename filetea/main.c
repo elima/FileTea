@@ -180,6 +180,7 @@ setup_https_node (GKeyFile *config, GError **error)
   EvdTlsCredentials *cred;
   gchar *addr;
   guint dh_depth;
+  FileteaWebService *web_service;
 
   /* load X.509 certificate filename from config */
   cert_file = g_key_file_get_string (config, "https", "cert", error);
@@ -196,12 +197,14 @@ setup_https_node (GKeyFile *config, GError **error)
   if (https_node == NULL)
     return FALSE;
 
+  web_service = filetea_node_get_web_service (https_node);
+
   /* activate TLS automatically in the node */
-  evd_service_set_tls_autostart (EVD_SERVICE (https_node), TRUE);
+  evd_service_set_tls_autostart (EVD_SERVICE (web_service), TRUE);
 
   /* obtain TLS credentials object from the node, and load the certificate
      asynchronously */
-  cred = evd_service_get_tls_credentials (EVD_SERVICE (https_node));
+  cred = evd_service_get_tls_credentials (EVD_SERVICE (web_service));
   evd_tls_credentials_add_certificate_from_file (cred,
                                                  cert_file,
                                                  key_file,
@@ -245,7 +248,7 @@ setup_https_node (GKeyFile *config, GError **error)
 
   /* start listening */
   addr = g_strdup_printf ("0.0.0.0:%d", https_port);
-  evd_service_listen (EVD_SERVICE (https_node),
+  evd_service_listen (EVD_SERVICE (web_service),
                       addr,
                       NULL,
                       node_on_listen,
@@ -263,11 +266,14 @@ static gboolean
 setup_http_node (GKeyFile *config, GError **error)
 {
   gchar *addr;
+  FileteaWebService *web_service;
 
   /* create Filetea node for HTTP */
   http_node = filetea_node_new (config, error);
   if (http_node == NULL)
     return FALSE;
+
+  web_service = filetea_node_get_web_service (http_node);
 
   /* obtain HTTPS listening port */
   if (! resolve_port (config,
@@ -281,7 +287,7 @@ setup_http_node (GKeyFile *config, GError **error)
 
   /* start listening */
   addr = g_strdup_printf ("0.0.0.0:%d", http_port);
-  evd_service_listen (EVD_SERVICE (http_node),
+  evd_service_listen (EVD_SERVICE (web_service),
                       addr,
                       NULL,
                       node_on_listen,

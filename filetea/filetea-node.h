@@ -3,7 +3,7 @@
  *
  * FileTea, low-friction file sharing <http://filetea.net>
  *
- * Copyright (C) 2011-2012, Igalia S.L.
+ * Copyright (C) 2011-2014, Igalia S.L.
  *
  * Authors:
  *   Eduardo Lima Mitev <elima@igalia.com>
@@ -25,7 +25,8 @@
 
 #include <evd.h>
 
-#include <filetea-protocol.h>
+#include "filetea-protocol.h"
+#include "filetea-web-service.h"
 
 G_BEGIN_DECLS
 
@@ -35,38 +36,38 @@ typedef struct _FileteaNodePrivate FileteaNodePrivate;
 
 struct _FileteaNode
 {
-  EvdWebService parent;
+  GObject parent;
 
   FileteaNodePrivate *priv;
 };
 
 struct _FileteaNodeClass
 {
-  EvdWebServiceClass parent_class;
-
-  /* virtual methods */
-
-  /* signal prototypes */
+  GObjectClass parent_class;
 };
 
-#define FILETEA_NODE_TYPE           (filetea_node_get_type ())
-#define FILETEA_NODE(obj)           (G_TYPE_CHECK_INSTANCE_CAST ((obj), FILETEA_NODE_TYPE, FileteaNode))
-#define FILETEA_NODE_CLASS(obj)     (G_TYPE_CHECK_CLASS_CAST ((obj), FILETEA_NODE_TYPE, FileteaNodeClass))
-#define FILETEA_IS_NODE(obj)        (G_TYPE_CHECK_INSTANCE_TYPE ((obj), FILETEA_NODE_TYPE))
-#define FILETEA_IS_NODE_CLASS(obj)  (G_TYPE_CHECK_CLASS_TYPE ((obj), FILETEA_NODE_TYPE))
-#define FILETEA_NODE_GET_CLASS(obj) (G_TYPE_INSTANCE_GET_CLASS ((obj), FILETEA_NODE_TYPE, FileteaNodeClass))
+#define FILETEA_TYPE_NODE           (filetea_node_get_type ())
+#define FILETEA_NODE(obj)           (G_TYPE_CHECK_INSTANCE_CAST ((obj), FILETEA_TYPE_NODE, FileteaNode))
+#define FILETEA_NODE_CLASS(obj)     (G_TYPE_CHECK_CLASS_CAST ((obj), FILETEA_TYPE_NODE, FileteaNodeClass))
+#define FILETEA_IS_NODE(obj)        (G_TYPE_CHECK_INSTANCE_TYPE ((obj), FILETEA_TYPE_NODE))
+#define FILETEA_IS_NODE_CLASS(obj)  (G_TYPE_CHECK_CLASS_TYPE ((obj), FILETEA_TYPE_NODE))
+#define FILETEA_NODE_GET_CLASS(obj) (G_TYPE_INSTANCE_GET_CLASS ((obj), FILETEA_TYPE_NODE, FileteaNodeClass))
 
 
-GType             filetea_node_get_type                (void) G_GNUC_CONST;
+GType               filetea_node_get_type              (void) G_GNUC_CONST;
 
-FileteaNode *     filetea_node_new                     (GKeyFile  *config,
+FileteaNode *       filetea_node_new                   (GKeyFile  *config,
                                                         GError   **error);
 
-const gchar *     filetea_node_get_id                  (FileteaNode  *self);
+const gchar *       filetea_node_get_id                (FileteaNode  *self);
+
+FileteaWebService * filetea_node_get_web_service       (FileteaNode *self);
 
 #ifdef ENABLE_TESTS
 
-FileteaProtocol * filetea_node_get_protocol            (FileteaNode *self);
+FileteaProtocol *   filetea_node_get_protocol          (FileteaNode *self);
+
+GList *             filetea_node_get_all_sources       (FileteaNode *self);
 
 #endif /* ENABLE_TESTS */
 

@@ -3,7 +3,7 @@
  *
  * FileTea, low-friction file sharing <http://filetea.net>
  *
- * Copyright (C) 2011-2013, Igalia S.L.
+ * Copyright (C) 2011-2014, Igalia S.L.
  *
  * Authors:
  *   Eduardo Lima Mitev <elima@igalia.com>
@@ -23,45 +23,39 @@
 #include <uuid/uuid.h>
 
 #include "filetea-node.h"
-#include "file-source.h"
-#include "file-transfer.h"
 
-G_DEFINE_TYPE (FileteaNode, filetea_node, EVD_TYPE_WEB_SERVICE)
+#include "filetea-source.h"
+#include "filetea-transfer.h"
+
+G_DEFINE_TYPE (FileteaNode, filetea_node, G_TYPE_OBJECT)
 
 #define FILETEA_NODE_GET_PRIVATE(obj) (G_TYPE_INSTANCE_GET_PRIVATE ((obj), \
-                                       FILETEA_NODE_TYPE, \
+                                       FILETEA_TYPE_NODE, \
                                        FileteaNodePrivate))
 
 #define DEFAULT_SOURCE_ID_START_DEPTH 8
 
-#define PATH_ACTION_VIEW "view"
-
+/*
 #define FILETEA_ERROR_DOMAIN_STR "me.filetea.ErrorDomain"
 #define FILETEA_ERROR            g_quark_from_string (FILETEA_ERROR_DOMAIN_STR)
 
-#define DEFAULT_JQUERY_DIR "/usr/share/javascript/jquery/"
-
 typedef enum {
-  FILETEA_ERROR_SUCCESS,
-  FILETEA_ERROR_FILE_NOT_FOUND,
-  FILETEA_ERROR_RPC_UNKNOWN_METHOD
+  FILETEA_ERROR_NONE,
+  FILETEA_ERROR_SOURCE_NOT_FOUND,
 } FileteaErrorEnum;
+*/
 
 /* private data */
 struct _FileteaNodePrivate
 {
   gchar *id;
+  gchar *key;
   guint8 source_id_start_depth;
 
   FileteaProtocolVTable protocol_vtable;
   FileteaProtocol *protocol;
 
-  EvdPeerManager *peer_manager;
-  EvdJsonrpc *rpc;
-  EvdWebTransportServer *transport;
-  EvdWebSelector *selector;
-  EvdWebDir *webdir;
-  EvdWebDir *jquery_webdir;
+  FileteaWebService *web_service;
 
   GHashTable *sources_by_id;
   GHashTable *sources_by_peer;
@@ -69,13 +63,6 @@ struct _FileteaNodePrivate
   GHashTable *transfers_by_peer;
 
   guint report_transfers_src_id;
-
-  gboolean force_https;
-  guint https_port;
-
-  gchar *log_filename;
-  GFileOutputStream *log_output_stream;
-  GQueue *log_queue;
 };
 
 static void     filetea_node_class_init         (FileteaNodeClass *class);
@@ -84,53 +71,44 @@ static void     filetea_node_init               (FileteaNode *self);
 static void     filetea_node_finalize           (GObject *obj);
 static void     filetea_node_dispose            (GObject *obj);
 
-static void     register_source                 (FileteaProtocol  *protocol,
+static gboolean register_source                 (FileteaProtocol  *protocol,
                                                  EvdPeer          *peer,
                                                  FileteaSource    *source,
-                                                 gchar           **id,
-                                                 gchar           **signature,
+                                                 GError          **error,
                                                  gpointer          user_data);
 static gboolean unregister_source               (FileteaProtocol *protocol,
                                                  EvdPeer         *peer,
                                                  const gchar     *id,
                                                  gboolean         gracefully,
                                                  gpointer         user_data);
+static void     content_request                 (FileteaProtocol    *protocol,
+                                                 FileteaSource      *source,
+                                                 EvdHttpConnection  *conn,
+                                                 const gchar        *action,
+                                                 const gchar        *peer_id,
+                                                 gboolean            is_chunked,
+                                                 SoupRange          *byte_range,
+                                                 gpointer            user_data);
+static void     content_push                    (FileteaProtocol    *protocol,
+                                                 FileteaTransfer    *transfer,
+                                                 EvdHttpConnection  *conn,
+                                                 gpointer            user_data);
 
-
-
-static void     on_new_peer                     (EvdPeerManager *self,
-                                                 EvdPeer        *peer,
-                                                 gpointer        user_data);
-static void     on_peer_closed                  (EvdPeerManager *self,
-                                                 EvdPeer        *peer,
-                                                 gboolean        gracefully,
-                                                 gpointer        user_data);
-
-static void     request_handler                 (EvdWebService     *self,
-                                                 EvdHttpConnection *conn,
-                                                 EvdHttpRequest    *request);
-
-static void     rpc_on_method_called            (EvdJsonrpc  *jsonrpc,
-                                                 const gchar *method_name,
-                                                 JsonNode    *params,
-                                                 guint        invocation_id,
-                                                 gpointer     context,
-                                                 gpointer     user_data);
-
-static void     web_dir_on_log_entry            (EvdWebService *service,
-                                                 const gchar   *entry,
-                                                 gpointer       user_data);
+static void     on_new_peer                     (EvdTransport *transport,
+                                                 EvdPeer      *peer,
+                                                 gpointer      user_data);
+static void     on_peer_closed                  (EvdTransport *transport,
+                                                 EvdPeer      *peer,
+                                                 gboolean      gracefully,
+                                                 gpointer      user_data);
 
 static void
 filetea_node_class_init (FileteaNodeClass *class)
 {
   GObjectClass *obj_class = G_OBJECT_CLASS (class);
-  EvdWebServiceClass *ws_class = EVD_WEB_SERVICE_CLASS (class);
 
   obj_class->dispose = filetea_node_dispose;
   obj_class->finalize = filetea_node_finalize;
-
-  ws_class->request_handler = request_handler;
 
   g_type_class_add_private (obj_class, sizeof (FileteaNodePrivate));
 }
@@ -151,13 +129,8 @@ filetea_node_init (FileteaNode *self)
   /* fill protocol's virtual table */
   priv->protocol_vtable.register_source = register_source;
   priv->protocol_vtable.unregister_source = unregister_source;
-
-  /* web transport */
-  priv->transport = evd_web_transport_server_new (NULL);
-
-  /* associate protocol's RPC with transport */
-  evd_jsonrpc_use_transport (filetea_protocol_get_rpc (priv->protocol),
-                             EVD_TRANSPORT (priv->transport));
+  priv->protocol_vtable.content_request = content_request;
+  priv->protocol_vtable.content_push = content_push;
 
   /* hash tables for indexing sources */
   self->priv->sources_by_id =
@@ -171,89 +144,28 @@ filetea_node_init (FileteaNode *self)
                            NULL,
                            (GDestroyNotify) g_hash_table_unref);
 
-
-
-  /* JSON-RPC */
-  priv->rpc = evd_jsonrpc_new ();
-  evd_jsonrpc_set_callbacks (priv->rpc,
-                             rpc_on_method_called,
-                             NULL,
-                             self,
-                             NULL);
-  evd_ipc_mechanism_use_transport (EVD_IPC_MECHANISM (priv->rpc),
-                                   EVD_TRANSPORT (priv->transport));
-
-  /* web dir */
-  priv->webdir = evd_web_dir_new ();
-  evd_web_dir_set_root (priv->webdir, HTML_DATA_DIR);
-
-  /* jquery web dir */
-  priv->jquery_webdir = evd_web_dir_new ();
-  evd_web_dir_set_alias (priv->jquery_webdir, "/jquery");
-
-  /* web selector */
-  priv->selector = evd_web_selector_new ();
-
-  evd_web_transport_server_use_selector (priv->transport, priv->selector);
-  evd_web_selector_set_default_service (priv->selector,
-                                        EVD_SERVICE (priv->webdir));
-
-  evd_web_selector_add_service (priv->selector,
-                                NULL,
-                                "/jquery/",
-                                EVD_SERVICE (priv->jquery_webdir),
-                                NULL);
-
-  /* track peers */
-  priv->peer_manager = evd_peer_manager_get_default ();
-  g_signal_connect (priv->peer_manager,
-                    "new-peer",
-                    G_CALLBACK (on_new_peer),
-                    self);
-  g_signal_connect (priv->peer_manager,
-                    "peer-closed",
-                    G_CALLBACK (on_peer_closed),
-                    self);
-
   /* hash tables for indexing file transfers */
   self->priv->transfers_by_id =
     g_hash_table_new_full (g_str_hash,
                            g_str_equal,
-                           NULL,
-                           (GDestroyNotify) file_transfer_unref);
+                           g_free,
+                           g_object_unref);
 
+  /*
   self->priv->transfers_by_peer =
     g_hash_table_new_full (g_direct_hash,
                            g_direct_equal,
                            NULL,
                            (GDestroyNotify) g_queue_free);
+  */
 
   priv->report_transfers_src_id = 0;
-
-  priv->force_https = FALSE;
-  priv->https_port = 0;
-
-  priv->log_filename = NULL;
-  priv->log_output_stream = NULL;
-  priv->log_queue = NULL;
 }
 
 static void
 filetea_node_dispose (GObject *obj)
 {
   FileteaNode *self = FILETEA_NODE (obj);
-
-  if (self->priv->peer_manager != NULL)
-    {
-      g_signal_handlers_disconnect_by_func (self->priv->peer_manager,
-                                            on_new_peer,
-                                            self);
-      g_signal_handlers_disconnect_by_func (self->priv->peer_manager,
-                                            on_peer_closed,
-                                            self);
-      g_object_unref (self->priv->peer_manager);
-      self->priv->peer_manager = NULL;
-    }
 
   if (self->priv->sources_by_id != NULL)
     {
@@ -286,35 +198,65 @@ static void
 filetea_node_finalize (GObject *obj)
 {
   FileteaNode *self = FILETEA_NODE (obj);
+  EvdTransport *transport;
+  EvdTransport *ws_transport;
 
   g_free (self->priv->id);
+  g_free (self->priv->key);
 
   g_object_unref (self->priv->protocol);
 
-  g_object_unref (self->priv->rpc);
-  g_object_unref (self->priv->transport);
-  g_object_unref (self->priv->webdir);
-  g_object_unref (self->priv->jquery_webdir);
-  g_object_unref (self->priv->selector);
+  transport = filetea_web_service_get_transport (self->priv->web_service);
+  g_signal_handlers_disconnect_by_func (transport,
+                                        on_new_peer,
+                                        self);
+  g_signal_handlers_disconnect_by_func (transport,
+                                        on_peer_closed,
+                                        self);
 
-  if (self->priv->log_queue != NULL)
-    {
-      while (g_queue_get_length (self->priv->log_queue) > 0)
-        {
-          gchar *entry;
-          entry = g_queue_pop_head (self->priv->log_queue);
-          g_free (entry);
-        }
-      g_queue_free (self->priv->log_queue);
-    }
+  g_object_get (transport, "websocket-service", &ws_transport, NULL);
+  g_signal_handlers_disconnect_by_func (ws_transport,
+                                        on_new_peer,
+                                        self);
+  g_signal_handlers_disconnect_by_func (ws_transport,
+                                        on_peer_closed,
+                                        self);
+  g_object_unref (ws_transport);
 
-  if (self->priv->log_output_stream != NULL)
-    g_object_unref (self->priv->log_output_stream);
-
-  if (self->priv->log_filename != NULL)
-    g_free (self->priv->log_filename);
+  g_object_unref (self->priv->web_service);
 
   G_OBJECT_CLASS (filetea_node_parent_class)->finalize (obj);
+}
+
+static gboolean
+load_config (FileteaNode *self, GKeyFile *config, GError **error)
+{
+  /* node id */
+  self->priv->id = g_key_file_get_string (config, "node", "id", error);
+  if (self->priv->id == NULL)
+    return FALSE;
+
+  /* node key */
+  self->priv->key = g_key_file_get_string (config, "node", "key", NULL);
+  if (self->priv->key == NULL)
+    {
+      /* generate a random key */
+      self->priv->key = evd_uuid_new ();
+    }
+
+  /* source id start depth */
+  self->priv->source_id_start_depth =
+    g_key_file_get_integer (config,
+                            "node",
+                            "source-id-start-depth",
+                            NULL);
+  if (self->priv->source_id_start_depth == 0)
+    self->priv->source_id_start_depth = DEFAULT_SOURCE_ID_START_DEPTH;
+  else
+    self->priv->source_id_start_depth =
+      MIN (self->priv->source_id_start_depth, 16 + strlen (self->priv->id));
+
+  return TRUE;
 }
 
 static gchar *
@@ -373,26 +315,143 @@ generate_source_id (FileteaNode *self, const gchar *instance_id)
   return id;
 }
 
-static void
+static gchar *
+source_get_signature (FileteaNode *self, FileteaSource *source)
+{
+  GHmac *hmac;
+  gchar *signature = NULL;
+  gchar *data;
+
+  hmac = g_hmac_new (G_CHECKSUM_SHA256,
+                     (const guchar *) self->priv->key,
+                     strlen (self->priv->key));
+
+  /* data to be signed is: <id>:<content-type>:<flags> */
+  data = g_strdup_printf ("%s:%s:%u",
+                          filetea_source_get_id (source),
+                          filetea_source_get_content_type (source),
+                          filetea_source_get_flags (source));
+
+  g_hmac_update (hmac, (const guchar *) data, -1);
+
+  signature = g_strdup (g_hmac_get_string (hmac));
+
+  g_free (data);
+  g_hmac_unref (hmac);
+
+  return signature;
+}
+
+static gboolean
+source_check_signature (FileteaNode   *self,
+                        FileteaSource *source,
+                        const gchar   *signature)
+{
+  gboolean result;
+  gchar *actual_signature;
+
+  actual_signature = source_get_signature (self, source);
+  result = g_strcmp0 (signature, actual_signature) == 0;
+
+  g_free (actual_signature);
+
+  return result;
+}
+
+static gboolean
 register_source (FileteaProtocol  *protocol,
                  EvdPeer          *peer,
                  FileteaSource    *source,
-                 gchar           **id,
-                 gchar           **signature,
+                 GError          **error,
                  gpointer          user_data)
 {
   FileteaNode *self = FILETEA_NODE (user_data);
   GHashTable *sources_of_peer;
-  gchar *source_id;
 
-  /* create a fresh source id */
-  source_id = generate_source_id (self, self->priv->id);
+  /* check if an existing id is being claimed */
+  if (filetea_source_get_id (source) != NULL)
+    {
+      const gchar *source_id;
+      const gchar *source_sig;
 
-  /* store id in source object */
-  filetea_source_set_id (source, source_id);
+      source_id = filetea_source_get_id (source);
+      source_sig = filetea_source_get_signature (source);
+
+      /* validate the signature */
+      if (source_check_signature (self, source, source_sig))
+        {
+          FileteaSource *current_source;
+
+          /* registration seems authentic */
+
+          /* check if the source is already registered */
+          current_source = g_hash_table_lookup (self->priv->sources_by_id,
+                                                source_id);
+          if (current_source != NULL)
+            {
+              sources_of_peer =
+                g_hash_table_lookup (self->priv->sources_by_peer,
+                                     filetea_source_get_peer (current_source));
+              g_assert (sources_of_peer != NULL);
+              g_hash_table_remove (sources_of_peer, source_id);
+
+              /* already registered, just update the fields and return success */
+              filetea_source_set_peer (current_source, peer);
+
+              /* fill 'sources_by_peer' table */
+              sources_of_peer = g_hash_table_lookup (self->priv->sources_by_peer, peer);
+              if (sources_of_peer == NULL)
+                {
+                  sources_of_peer =
+                    g_hash_table_new_full (g_str_hash,
+                                           g_str_equal,
+                                           g_free,
+                                           g_object_unref);
+                  g_hash_table_insert (self->priv->sources_by_peer, peer, sources_of_peer);
+                }
+              g_hash_table_insert (sources_of_peer,
+                                   g_strdup (filetea_source_get_id (source)),
+                                   g_object_ref (current_source));
+
+              /* @TODO: update the rest of the fields */
+
+              return TRUE;
+            }
+        }
+      else
+        {
+          /* invalid signature, return error */
+          g_set_error (error,
+                       G_IO_ERROR,
+                       G_IO_ERROR_INVALID_ARGUMENT,
+                       "Invalid source signature");
+          return FALSE;
+        }
+    }
+  else
+    {
+      gchar *source_id;
+      gchar *source_sig;
+
+      /* create a fresh source id */
+      source_id = generate_source_id (self, self->priv->id);
+
+      /* store id in source object */
+      filetea_source_set_id (source, source_id);
+
+      /* create a signature for this source */
+      /* @TODO: do this asynchonously to avoid blocking */
+      source_sig = source_get_signature (self, source);
+      filetea_source_set_signature (source, source_sig);
+
+      g_free (source_id);
+      g_free (source_sig);
+    }
 
   /* fill 'sources_by_id' table */
-  g_hash_table_insert (self->priv->sources_by_id, source_id, source);
+  g_hash_table_insert (self->priv->sources_by_id,
+                       g_strdup (filetea_source_get_id (source)),
+                       g_object_ref (source));
 
   /* fill 'sources_by_peer' table */
   sources_of_peer = g_hash_table_lookup (self->priv->sources_by_peer, peer);
@@ -401,22 +460,35 @@ register_source (FileteaProtocol  *protocol,
       sources_of_peer =
         g_hash_table_new_full (g_str_hash,
                                g_str_equal,
-                               NULL,
+                               g_free,
                                g_object_unref);
       g_hash_table_insert (self->priv->sources_by_peer, peer, sources_of_peer);
     }
-  g_object_ref (source);
-  g_hash_table_insert (sources_of_peer, source_id, source);
+  g_hash_table_insert (sources_of_peer,
+                       g_strdup (filetea_source_get_id (source)),
+                       g_object_ref (source));
 
   /* @TODO: if source is public, index it */
 
   /* @TODO: write corresponding entry in filetea log file */
 
-  /* return a copy of the source id to the protocol */
-  *id = g_strdup (source_id);
+  return TRUE;
+}
 
-  /* @TODO: create a signature for this source and return it to the protocol */
-  *signature = NULL;
+static void
+remove_source (FileteaNode *self, FileteaSource *source, gboolean graceful)
+{
+  /* @TODO: if source was public, un-index it */
+
+  /* @TODO: if removal is not 'graceful', abort related transfers */
+
+  /* @TODO: notify subscribers that source is gone */
+
+  /* @TODO: write corresponding entry in filetea log file */
+
+  /* finally, remove source */
+  g_hash_table_remove (self->priv->sources_by_id,
+                       filetea_source_get_id (source));
 }
 
 static gboolean
@@ -442,142 +514,165 @@ unregister_source (FileteaProtocol *protocol,
       return FALSE;
     }
 
-  /* remove source */
-  g_hash_table_remove (self->priv->sources_by_id, id);
+  /* remove source from peer's own table */
   sources_of_peer = g_hash_table_lookup (self->priv->sources_by_peer, peer);
+  g_assert (sources_of_peer != NULL);
   g_hash_table_remove (sources_of_peer, id);
 
-  /* @TODO: if source was public, un-index it */
-
-  /* @TODO: if unregistration is not 'graceful', abort related transfers */
-
-  /* @TODO: write corresponding entry in filetea log file */
+  /* remove source from main table */
+  remove_source (self, source, gracefully);
 
   return TRUE;
 }
 
-static FileSource *
-add_file_source (FileteaNode *self, JsonNode *item, EvdPeer *peer)
+static void
+transfer_on_completed (GObject      *obj,
+                       GAsyncResult *result,
+                       gpointer      user_data)
 {
-  JsonArray *a;
-  JsonNode *node;
-  gchar *id;
-  const gchar *name;
-  const gchar *type;
-  gssize size;
-  FileSource *source;
-  GHashTable *sources_of_peer;
+  FileteaTransfer *transfer = FILETEA_TRANSFER (obj);
+  FileteaNode *self = FILETEA_NODE (user_data);
+  GError *error = NULL;
 
-  a = json_node_get_array (item);
-
-  node = json_array_get_element (a, 0);
-  name = json_node_get_string (node);
-
-  node = json_array_get_element (a, 1);
-  type = json_node_get_string (node);
-
-  node = json_array_get_element (a, 2);
-  size = (gssize) json_node_get_int (node);
-
-  if (name == NULL || type == NULL || size <= 0)
-    return NULL;
-
-  id = generate_source_id (self, self->priv->id);
-  source = file_source_new (peer, id, name, type, size, G_OBJECT (self));
-  g_free (id);
-
-  g_hash_table_insert (self->priv->sources_by_id, source->id, source);
-
-  sources_of_peer = g_hash_table_lookup (self->priv->sources_by_peer, peer);
-  if (sources_of_peer == NULL)
+  if (! filetea_transfer_finish (transfer, result, &error))
     {
-      sources_of_peer =
-        g_hash_table_new_full (g_str_hash,
-                               g_str_equal,
-                               NULL,
-                               (GDestroyNotify) file_source_unref);
-      g_hash_table_insert (self->priv->sources_by_peer, peer, sources_of_peer);
+      g_print ("Transfer failed: %s\n", error->message);
+      g_error_free (error);
     }
-  g_hash_table_insert (sources_of_peer, source->id, file_source_ref (source));
+  else
+    {
+      /* @TODO */
+      /*      g_print ("Transfer completed\n"); */
+    }
 
-  g_debug ("Added new source '%s'", name);
-
-  return source;
+  /* remove transfer */
+  g_hash_table_remove (self->priv->transfers_by_id,
+                       filetea_transfer_get_id (transfer));
 }
 
 static void
-remove_file_source (FileSource  *source, gboolean abort_transfers)
+content_request (FileteaProtocol    *protocol,
+                 FileteaSource      *source,
+                 EvdHttpConnection  *conn,
+                 const gchar        *action,
+                 const gchar        *peer_id,
+                 gboolean            is_chunked,
+                 SoupRange          *byte_range,
+                 gpointer            user_data)
 {
-  FileteaNode *self = FILETEA_NODE (source->node);
+  FileteaNode *self = FILETEA_NODE (user_data);
+  FileteaTransfer *transfer;
+  GError *error = NULL;
 
-  g_hash_table_remove (self->priv->sources_by_id, source->id);
-
-  if (abort_transfers)
+  if (is_chunked)
     {
-      /* @TODO */
+      guint flags;
+
+      flags = filetea_source_get_flags (source);
+      if ((flags & FILETEA_SOURCE_FLAGS_CHUNKABLE) == 0)
+        {
+          evd_web_service_respond (EVD_WEB_SERVICE (self->priv->web_service),
+                                   conn,
+                                   SOUP_STATUS_REQUESTED_RANGE_NOT_SATISFIABLE,
+                                   NULL,
+                                   NULL,
+                                   0,
+                                   NULL);
+          return;
+        }
     }
+
+  /* create new transfer */
+  transfer = filetea_transfer_new (source,
+                                   EVD_WEB_SERVICE (self->priv->web_service),
+                                   conn,
+                                   action,
+                                   is_chunked,
+                                   byte_range,
+                                   filetea_source_get_cancellable (source),
+                                   transfer_on_completed,
+                                   self);
+
+  /* fill 'transfers-by-id' table */
+  g_hash_table_insert (self->priv->transfers_by_id,
+                       g_strdup (filetea_transfer_get_id (transfer)),
+                       transfer);
+
+  /* associate target peer with transfer */
+  if (peer_id != NULL)
+    {
+      EvdTransport *transport;
+      EvdPeer *peer = NULL;
+
+      transport = filetea_web_service_get_transport (self->priv->web_service);
+      peer = evd_transport_lookup_peer (transport, peer_id);
+
+      if (peer != NULL)
+        filetea_transfer_set_target_peer (transfer, peer);
+    }
+
+  /* notify source peer */
+  filetea_protocol_request_content (self->priv->protocol,
+                                    filetea_source_get_peer (source),
+                                    filetea_source_get_id (source),
+                                    filetea_transfer_get_id (transfer),
+                                    is_chunked,
+                                    byte_range,
+                                    &error);
+
+  if (error != NULL)
+    {
+      g_print ("Failed to notify source peer of new transfer: %s\n", error->message);
+      g_error_free (error);
+
+      /* @TODO: abort transfer */
+      return;
+    }
+
+  /* @TODO: set transfer bandwidth limits */
+
+  g_print ("requested '%s'\n", filetea_source_get_name (source));
+}
+
+static void
+content_push (FileteaProtocol    *protocol,
+              FileteaTransfer    *transfer,
+              EvdHttpConnection  *conn,
+              gpointer            user_data)
+{
+  /* set source connection of transfer */
+  filetea_transfer_set_source_conn (transfer, conn);
+
+  /* start the transfer */
+  filetea_transfer_start (transfer);
 }
 
 static gboolean
-remove_file_source_foreach (gpointer key,
-                            gpointer value,
-                            gpointer user_data)
+remove_source_foreach (gpointer key,
+                       gpointer value,
+                       gpointer user_data)
 {
-  FileSource *source = value;
-  gboolean abort_transfers = * (gboolean *) user_data;
+  FileteaNode *self = FILETEA_NODE (user_data);
+  FileteaSource *source = FILETEA_SOURCE (value);
 
-  remove_file_source (source, abort_transfers);
+  remove_source (self, source, FALSE);
 
   return TRUE;
 }
 
 static void
-remove_file_sources (FileteaNode *self, JsonNode *ids, gboolean abort_transfers)
+on_new_peer (EvdTransport *transport,
+             EvdPeer      *peer,
+             gpointer      user_data)
 {
-  JsonArray *a;
-  gint i;
-  JsonNode *item;
-
-  a = json_node_get_array (ids);
-
-  for (i=0; i < json_array_get_length (a); i++)
-    {
-      const gchar *id;
-      FileSource *source;
-
-      item = json_array_get_element (a, i);
-      id = json_node_get_string (item);
-
-      if (id != NULL &&
-          (source = g_hash_table_lookup (self->priv->sources_by_id, id)) != NULL)
-        {
-          GHashTable *sources_of_peer;
-
-          g_debug ("Removed file source '%s'", source->file_name);
-
-          remove_file_source (source, abort_transfers);
-
-          sources_of_peer = g_hash_table_lookup (self->priv->sources_by_peer,
-                                                 source->peer);
-          if (sources_of_peer != NULL)
-            g_hash_table_remove (sources_of_peer, source->id);
-        }
-    }
+  g_print ("New peer %s\n", evd_peer_get_id (peer));
 }
 
 static void
-on_new_peer (EvdPeerManager *peer_manager,
-             EvdPeer        *peer,
-             gpointer        user_data)
-{
-  g_debug ("New peer %s", evd_peer_get_id (peer));
-}
-
-static void
-on_peer_closed (EvdPeerManager *peer_manager,
-                EvdPeer        *peer,
-                gboolean        gracefully,
-                gpointer        user_data)
+on_peer_closed (EvdTransport *transport,
+                EvdPeer      *peer,
+                gboolean      gracefully,
+                gpointer      user_data)
 {
   FileteaNode *self = FILETEA_NODE (user_data);
   GHashTable *sources_of_peer;
@@ -585,878 +680,94 @@ on_peer_closed (EvdPeerManager *peer_manager,
   sources_of_peer = g_hash_table_lookup (self->priv->sources_by_peer, peer);
   if (sources_of_peer != NULL)
     {
-      gboolean abort_transfers = TRUE;
-
       g_hash_table_foreach_remove (sources_of_peer,
-                                   remove_file_source_foreach,
-                                   &abort_transfers);
+                                   remove_source_foreach,
+                                   self);
 
       g_hash_table_remove (self->priv->sources_by_peer, peer);
     }
 
-  g_debug ("Closed peer %s", evd_peer_get_id (peer));
+  g_print ("Closed peer %s\n", evd_peer_get_id (peer));
 }
 
 static void
-on_new_transfer_response (GObject      *obj,
-                          GAsyncResult *res,
-                          gpointer      user_data)
-{
-  JsonNode *error_json;
-  JsonNode *result_json;
-  GError *error = NULL;
-
-  if (! evd_jsonrpc_call_method_finish (EVD_JSONRPC (obj),
-                                        res,
-                                        &result_json,
-                                        &error_json,
-                                        &error))
-    {
-      /* @TODO: source error, cancel transfer */
-      g_debug ("Error calling 'fileTransferNew' over JSON-RPC: %s", error->message);
-      g_error_free (error);
-      return;
-    }
-
-  if (error_json != NULL)
-    {
-      g_debug ("Transfer not accepted by peer");
-    }
-  else
-    {
-      json_node_free (result_json);
-    }
-}
-
-static void
-bind_transfer_to_peer (FileteaNode *self, EvdPeer *peer, FileTransfer *transfer)
-{
-  GQueue *peer_transfers;
-
-  peer_transfers = g_hash_table_lookup (self->priv->transfers_by_peer, peer);
-  if (peer_transfers == NULL)
-    {
-      peer_transfers = g_queue_new ();
-      g_hash_table_insert (self->priv->transfers_by_peer, peer, peer_transfers);
-    }
-
-  g_queue_push_head (peer_transfers, transfer);
-}
-
-static void
-unbind_transfer_from_peer (FileteaNode *self, EvdPeer *peer, FileTransfer *transfer)
-{
-  GQueue *peer_transfers;
-
-  peer_transfers = g_hash_table_lookup (self->priv->transfers_by_peer, peer);
-  if (peer_transfers == NULL)
-    return;
-
-  g_queue_remove (peer_transfers, transfer);
-
-  if (g_queue_get_length (peer_transfers) == 0)
-    g_hash_table_remove (self->priv->transfers_by_peer, peer);
-}
-
-static void
-report_transfer_finished (FileteaNode *self, FileTransfer *transfer)
-{
-  JsonNode *node;
-  JsonArray *args;
-  guint status;
-
-  file_transfer_get_status (transfer, &status, NULL, NULL);
-
-  node = json_node_new (JSON_NODE_ARRAY);
-  args = json_array_new ();
-  json_node_set_array (node, args);
-
-  json_array_add_string_element (args, transfer->id);
-  json_array_add_int_element (args, status);
-
-  if (! evd_jsonrpc_send_notification (self->priv->rpc,
-                                       "transfer-finished",
-                                       node,
-                                       transfer->source->peer,
-                                       NULL))
-    {
-      g_warning ("Failed to send 'transfer-finished' notification to peer");
-    }
-
-  if (transfer->target_peer != NULL)
-    {
-      if (! evd_jsonrpc_send_notification (self->priv->rpc,
-                                           "transfer-finished",
-                                           node,
-                                           transfer->target_peer,
-                                           NULL))
-        {
-          g_warning ("Failed to send 'transfer-finished' notification to peer");
-        }
-    }
-
-  json_array_unref (args);
-  json_node_free (node);
-}
-
-static void
-on_transfer_finished (GObject      *obj,
-                      GAsyncResult *res,
-                      gpointer      user_data)
-{
-  FileTransfer *transfer = user_data;
-  GError *error = NULL;
-  FileteaNode *self;
-
-  self = FILETEA_NODE (transfer->source->node);
-
-  if (! file_transfer_finish (transfer, res, &error))
-    {
-      g_debug ("transfer failed: %s", error->message);
-      g_error_free (error);
-    }
-  else
-    {
-      g_debug ("Transfer completed successfully: %s",
-               transfer->source->file_name);
-    }
-
-  report_transfer_finished (self, transfer);
-
-  unbind_transfer_from_peer (self, transfer->source->peer, transfer);
-  if (transfer->target_peer != NULL)
-    unbind_transfer_from_peer (self, transfer->target_peer, transfer);
-
-  if (self->priv->report_transfers_src_id != 0 &&
-      g_hash_table_size (self->priv->transfers_by_peer) == 0)
-    {
-      g_source_remove (self->priv->report_transfers_src_id);
-      self->priv->report_transfers_src_id = 0;
-    }
-
-  g_hash_table_remove (self->priv->transfers_by_id, transfer->id);
-}
-
-static void
-report_transfer_status (gpointer data, gpointer user_data)
-{
-  FileTransfer *transfer = data;
-  JsonArray *args = user_data;
-  guint status;
-  gsize transferred;
-  gdouble bandwidth;
-
-  file_transfer_get_status (transfer, &status, &transferred, &bandwidth);
-
-  if (status == FILE_TRANSFER_STATUS_ACTIVE)
-    {
-      JsonObject *obj;
-
-      obj = json_object_new ();
-
-      json_object_set_string_member (obj, "id", transfer->id);
-      json_object_set_int_member (obj, "status", status);
-      json_object_set_int_member (obj, "transferred", transferred);
-      json_object_set_int_member (obj, "bandwidth", bandwidth);
-
-      json_array_add_object_element (args, obj);
-    }
-}
-
-static gboolean
-report_transfers_status (gpointer user_data)
+web_service_on_content_request (FileteaWebService *web_service,
+                                const gchar       *content_id,
+                                EvdHttpConnection *conn,
+                                EvdHttpRequest    *request,
+                                gpointer           user_data)
 {
   FileteaNode *self = FILETEA_NODE (user_data);
-  GHashTableIter iter;
-  gpointer key, value;
+  GError *error = NULL;
 
-  self->priv->report_transfers_src_id = 0;
-
-  g_hash_table_iter_init (&iter, self->priv->transfers_by_peer);
-  while (g_hash_table_iter_next (&iter, &key, &value))
+  /* validate content id */
+  if (content_id == NULL || content_id[0] == '\0')
     {
-      EvdPeer *peer = EVD_PEER (key);
-      GQueue *transfers = value;
-      JsonNode *node;
-      JsonArray *args;
-
-      g_assert (g_queue_get_length (transfers) > 0);
-
-      node = json_node_new (JSON_NODE_ARRAY);
-      args = json_array_new ();
-      json_node_set_array (node, args);
-
-      g_queue_foreach (transfers, report_transfer_status, args);
-
-      if (json_array_get_length (args) > 0)
-        {
-          if (! evd_jsonrpc_send_notification (self->priv->rpc,
-                                               "transfer-status",
-                                               node,
-                                               peer,
-                                               NULL))
-            {
-              g_warning ("Failed to send 'transfer-status' notification to peer");
-            }
-        }
-
-      json_array_unref (args);
-      json_node_free (node);
-    }
-
-  return g_hash_table_size (self->priv->transfers_by_peer) > 0;
-}
-
-static FileTransfer *
-setup_new_transfer (FileteaNode       *self,
-                    FileSource        *source,
-                    EvdHttpConnection *conn,
-                    gboolean           download)
-{
-  FileTransfer *transfer;
-  JsonNode *params;
-  JsonArray *arr;
-  gchar *uuid;
-  gchar *transfer_id;
-
-  uuid = evd_uuid_new ();
-  transfer_id = g_strconcat (self->priv->id, uuid, NULL);
-  transfer = file_transfer_new (transfer_id,
-                                source,
-                                conn,
-                                download,
-                                on_transfer_finished,
-                                NULL);
-  g_free (transfer_id);
-  g_free (uuid);
-
-  params = json_node_new (JSON_NODE_ARRAY);
-  arr = json_array_new ();
-  json_node_set_array (params, arr);
-
-  json_array_add_string_element (arr, source->id);
-  json_array_add_string_element (arr, transfer->id);
-
-  evd_jsonrpc_call_method (self->priv->rpc,
-                           "fileTransferNew",
-                           params,
-                           source->peer,
-                           NULL,
-                           on_new_transfer_response,
-                           transfer);
-  json_array_unref (arr);
-  json_node_free (params);
-
-  g_hash_table_insert (self->priv->transfers_by_id, transfer->id, transfer);
-
-  bind_transfer_to_peer (self, transfer->source->peer, transfer);
-
-  if (self->priv->report_transfers_src_id == 0)
-    self->priv->report_transfers_src_id = evd_timeout_add (NULL,
-                                                           1000,
-                                                           G_PRIORITY_DEFAULT,
-                                                           report_transfers_status,
-                                                           self);
-
-  return transfer;
-}
-
-static gchar *
-get_static_content_path (FileteaNode    *self,
-                         EvdHttpRequest *request)
-{
-  /* @TODO: detect type of user-agent (mobile vs. desktop), and locale,
-     then redirect to correponding html root. By now, only default. */
-
-  return g_strdup ("/default");
-}
-
-static gboolean
-user_agent_is_browser (const gchar *user_agent)
-{
-  const gchar *mozilla = "Mozilla";
-  const gchar *opera = "Opera";
-
-  /* @TODO: improves this detection in the future;
-     it is currently very naive. */
-
-  return
-    (g_strstr_len (user_agent, strlen (mozilla), mozilla) == user_agent) ||
-    (g_strstr_len (user_agent, strlen (opera), opera) == user_agent);
-}
-
-static void
-check_file_size_changed (FileteaNode    *self,
-                         FileTransfer   *transfer,
-                         EvdHttpRequest *request)
-{
-  SoupMessageHeaders *headers;
-
-  headers = evd_http_message_get_headers (EVD_HTTP_MESSAGE (request));
-  if (soup_message_headers_get_encoding (headers) ==
-      SOUP_ENCODING_CONTENT_LENGTH)
-    {
-      gsize reported_content_len;
-
-      reported_content_len = soup_message_headers_get_content_length (headers);
-      if (reported_content_len != transfer->source->file_size)
-        {
-          JsonNode *node;
-          JsonArray *args;
-
-          transfer->source->file_size = reported_content_len;
-
-          node = json_node_new (JSON_NODE_ARRAY);
-          args = json_array_new ();
-          json_node_set_array (node, args);
-
-          json_array_add_string_element (args, transfer->source->id);
-          json_array_add_int_element (args, transfer->source->file_size);
-
-          if (! evd_jsonrpc_send_notification (self->priv->rpc,
-                                               "update-file-size",
-                                               node,
-                                               transfer->source->peer,
-                                               NULL))
-            {
-              g_warning ("Failed to send 'transfer-started' notification to peer");
-            }
-
-          json_array_unref (args);
-          json_node_free (node);
-        }
-    }
-}
-
-static gboolean
-handle_special_request (FileteaNode         *self,
-                        EvdHttpConnection   *conn,
-                        EvdHttpRequest      *request,
-                        SoupURI             *uri,
-                        gchar             **tokens)
-{
-  const gchar *id;
-  const gchar *action;
-
-  id = tokens[1];
-  action = tokens[2];
-
-  if (g_strcmp0 (evd_http_request_get_method (request), "PUT") == 0)
-    {
-      FileTransfer *transfer;
-
-      transfer = g_hash_table_lookup (self->priv->transfers_by_id, id);
-      if (transfer != NULL)
-        {
-          JsonNode *node;
-          JsonArray *args;
-
-          /* check if file size has changed */
-          check_file_size_changed (self, transfer, request);
-
-          file_transfer_set_source_conn (transfer, conn);
-          file_transfer_start (transfer);
-
-          if (transfer->target_peer &&
-              ! evd_peer_is_closed (transfer->target_peer))
-            {
-              bind_transfer_to_peer (self, transfer->target_peer, transfer);
-
-              node = json_node_new (JSON_NODE_ARRAY);
-              args = json_array_new ();
-              json_node_set_array (node, args);
-
-              json_array_add_string_element (args, transfer->id);
-              json_array_add_string_element (args, transfer->source->file_name);
-              json_array_add_int_element (args, transfer->source->file_size);
-              json_array_add_boolean_element (args, TRUE);
-
-              /* notify target */
-              if (! evd_jsonrpc_send_notification (self->priv->rpc,
-                                                   "transfer-started",
-                                                   node,
-                                                   transfer->target_peer,
-                                                   NULL))
-                {
-                  g_warning ("Failed to send 'transfer-started' notification to peer");
-                }
-
-              json_array_unref (args);
-              json_node_free (node);
-            }
-
-          return TRUE;
-        }
-    }
-  else
-    {
-      FileSource *source;
-
-      source = g_hash_table_lookup (self->priv->sources_by_id, id);
-      if (source != NULL)
-        {
-          SoupMessageHeaders *headers;
-          const gchar *user_agent;
-
-          headers = evd_http_message_get_headers (EVD_HTTP_MESSAGE (request));
-          user_agent = soup_message_headers_get_one (headers, "user-agent");
-
-          if ((action == NULL || (strlen (action) == 0)) &&
-              user_agent_is_browser (user_agent))
-            {
-              gchar *new_path;
-              gchar *static_content_path;
-              GError *error = NULL;
-
-              static_content_path = get_static_content_path (self, request);
-
-              new_path = g_strdup_printf ("%s/#%s", static_content_path, id);
-
-              g_free (static_content_path);
-
-              if (! evd_http_connection_redirect (conn, new_path, FALSE, &error))
-                {
-                  /* @TODO: do proper error logging */
-                  g_debug ("ERROR sending response to source: %s", error->message);
-                  g_error_free (error);
-                }
-
-              g_free (new_path);
-
-              return TRUE;
-            }
-          else
-            {
-              gboolean download;
-              FileTransfer *transfer;
-
-              download = g_strcmp0 (action, PATH_ACTION_VIEW) != 0;
-
-              transfer = setup_new_transfer (self, source, conn, download);
-
-              if (uri->query != NULL)
-                {
-                  EvdPeer *peer;
-
-                  peer = evd_transport_lookup_peer (EVD_TRANSPORT (self->priv->transport),
-                                                    uri->query);
-                  if (peer != NULL)
-                    file_transfer_set_target_peer (transfer, peer);
-                }
-
-              return TRUE;
-            }
-        }
-    }
-
-  return FALSE;
-}
-
-static void
-request_handler (EvdWebService     *web_service,
-                 EvdHttpConnection *conn,
-                 EvdHttpRequest    *request)
-{
-  FileteaNode *self = FILETEA_NODE (web_service);
-
-  gchar **tokens;
-  SoupURI *uri;
-  guint tokens_len;
-
-  uri = evd_http_request_get_uri (request);
-
-  /* redirect to HTTPS service if forced in config */
-  if (self->priv->force_https &&
-      ! evd_connection_get_tls_active (EVD_CONNECTION (conn)))
-    {
-      gchar *new_uri;
-
-      soup_uri_set_scheme (uri, "https");
-      soup_uri_set_port (uri, self->priv->https_port);
-
-      new_uri = soup_uri_to_string (uri, FALSE);
-
-      evd_http_connection_redirect (conn, new_uri, FALSE, NULL);
-
-      g_free (new_uri);
-
+      evd_web_service_respond (EVD_WEB_SERVICE (web_service),
+                               conn,
+                               SOUP_STATUS_FORBIDDEN,
+                               NULL,
+                               NULL,
+                               0,
+                               NULL);
       return;
     }
 
-  tokens = g_strsplit (uri->path, "/", 16);
-  tokens_len = g_strv_length (tokens);
+  const gchar *method = evd_http_request_get_method (request);
 
-  if (tokens_len >= 2 &&
-      handle_special_request (self, conn, request, uri, tokens))
+  if (g_strcmp0 (method, SOUP_METHOD_GET) == 0)
     {
-      /* @TODO: possibly, a request from a transfer endpoint */
-      g_debug ("transfer request");
-    }
-  else if (tokens_len == 2 &&
-           g_strcmp0 (tokens[1], "default") != 0 &&
-           g_strcmp0 (tokens[1], "common") != 0)
-    {
-      gchar *new_path;
-      GError *error = NULL;
-      gchar *static_content_path;
+      FileteaSource *source;
 
-      static_content_path = get_static_content_path (self, request);
+      /* lookup corresponding source */
+      source = g_hash_table_lookup (self->priv->sources_by_id, content_id);
+      if (source == NULL)
+        goto not_found;
 
-      new_path = g_strdup_printf ("%s%s", static_content_path, uri->path);
-
-      g_free (static_content_path);
-
-      /* redirect */
-      if (! evd_http_connection_redirect (conn, new_path, FALSE, &error))
+      /* let protocol handle the HTTP request */
+      if (! filetea_protocol_handle_content_request (self->priv->protocol,
+                                      source,
+                                      EVD_WEB_SERVICE (self->priv->web_service),
+                                      conn,
+                                      request,
+                                      &error))
         {
-          g_debug ("ERROR sending response to source: %s", error->message);
+          g_print ("Failed: %s\n", error->message);
           g_error_free (error);
         }
-
-      g_free (new_path);
     }
-  else
+  else if (g_strcmp0 (method, SOUP_METHOD_POST) == 0)
     {
-      evd_web_service_add_connection_with_request (EVD_WEB_SERVICE (self->priv->selector),
-                                                   conn,
-                                                   request,
-                                                   EVD_SERVICE (self));
-    }
+      FileteaTransfer *transfer;
 
-  g_strfreev (tokens);
-}
+      /* lookup corresponding transfer */
+      transfer = g_hash_table_lookup (self->priv->transfers_by_id, content_id);
+      if (transfer == NULL)
+        goto not_found;
 
-static void
-rpc_on_method_called (EvdJsonrpc  *jsonrpc,
-                      const gchar *method_name,
-                      JsonNode    *params,
-                      guint        invocation_id,
-                      gpointer     context,
-                      gpointer     user_data)
-{
-  FileteaNode *self = FILETEA_NODE (user_data);
-  EvdPeer *peer = EVD_PEER (context);
-  GError *error = NULL;
-  JsonArray *a;
-  gint i;
-  JsonNode *item;
-  JsonNode *result = NULL;
-  JsonArray *result_arr = NULL;
-
-  a = json_node_get_array (params);
-
-  if (g_strcmp0 (method_name, "addFileSources") == 0)
-    {
-      FileSource *source;
-
-      result = json_node_new (JSON_NODE_ARRAY);
-      result_arr = json_array_new ();
-      json_node_set_array (result, result_arr);
-
-      for (i = 0; i < json_array_get_length (a); i++)
+      /* let protocol handle the HTTP push */
+      if (! filetea_protocol_handle_content_push (self->priv->protocol,
+                                      transfer,
+                                      EVD_WEB_SERVICE (self->priv->web_service),
+                                      conn,
+                                      request,
+                                      &error))
         {
-          item = json_array_get_element (a, i);
-
-          source = add_file_source (self, item, peer);
-          if (source != NULL)
-            {
-              JsonArray *sources_arr;
-
-              sources_arr = json_array_new ();
-              json_array_add_string_element (sources_arr, source->id);
-
-              json_array_add_array_element (result_arr, sources_arr);
-            }
-          else
-            json_array_add_null_element (result_arr);
+          g_print ("Failed: %s\n", error->message);
+          g_error_free (error);
         }
     }
-  else if (g_strcmp0 (method_name, "removeFileSources") == 0)
-    {
-      gboolean abort_transfers;
 
-      item = json_array_get_element (a, 0);
-      abort_transfers = json_node_get_boolean (item);
+  return;
 
-      item = json_array_get_element (a, 1);
-
-      remove_file_sources (self, item, abort_transfers);
-
-      result = json_node_new (JSON_NODE_VALUE);
-      json_node_set_boolean (result, TRUE);
-    }
-  else if (g_strcmp0 (method_name, "getFileSourceInfo") == 0)
-    {
-      const gchar *id;
-      FileSource *source;
-
-      id = json_array_get_string_element (a, 0);
-      if (id != NULL &&
-          (source = g_hash_table_lookup (self->priv->sources_by_id, id)) != NULL)
-        {
-          result = json_node_new (JSON_NODE_ARRAY);
-          result_arr = json_array_new ();
-          json_node_set_array (result, result_arr);
-
-          json_array_add_string_element (result_arr, source->file_name);
-          json_array_add_string_element (result_arr, source->file_type);
-          json_array_add_int_element (result_arr, source->file_size);
-        }
-      else
-        {
-          g_set_error (&error,
-                       FILETEA_ERROR,
-                       FILETEA_ERROR_FILE_NOT_FOUND,
-                       "No source file with id '%s'", id);
-        }
-    }
-  else if (g_strcmp0 (method_name, "cancelTransfer") == 0)
-    {
-      const gchar *id;
-      FileTransfer *transfer;
-      gint i;
-
-      for (i=0; i<json_array_get_length (a); i++)
-        {
-          id = json_array_get_string_element (a, i);
-          if (id != NULL &&
-              (transfer = g_hash_table_lookup (self->priv->transfers_by_id,
-                                               id)) != NULL)
-            {
-              file_transfer_cancel (transfer);
-            }
-        }
-
-      result = json_node_new (JSON_NODE_VALUE);
-      json_node_set_boolean (result, TRUE);
-    }
-  else
-    {
-      /* error, method not known/handled */
-      g_set_error (&error,
-                   FILETEA_ERROR,
-                   FILETEA_ERROR_RPC_UNKNOWN_METHOD,
-                   "Unknown or unhandled JSON-RPC method '%s'", method_name);
-    }
-
-  if (error == NULL)
-    {
-      /* respond method call */
-      evd_jsonrpc_respond (jsonrpc,
-                           invocation_id,
-                           result,
-                           peer,
-                           &error);
-
-      if (result != NULL)
-        json_node_free (result);
-      if (result_arr != NULL)
-        json_array_unref (result_arr);
-    }
-  else
-    {
-      JsonObject *obj;
-
-      /* build error object and respond with error */
-      result = json_node_new (JSON_NODE_OBJECT);
-      obj = json_object_new ();
-      json_node_set_object (result, obj);
-
-      json_object_set_int_member (obj, "code", error->code);
-      json_object_set_string_member (obj, "message", error->message);
-
-      g_clear_error (&error);
-
-      evd_jsonrpc_respond_error (jsonrpc,
-                                 invocation_id,
-                                 result,
-                                 peer,
-                                 &error);
-
-      json_object_unref (obj);
-      json_node_free (result);
-    }
-
-
-  if (error != NULL)
-    {
-      /* failed to respond method call */
-
-      /* @TODO: do proper logging */
-      g_debug ("ERROR responding JSON-RPC method call: %s", error->message);
-      g_error_free (error);
-    }
-}
-
-static void
-set_max_node_bandwidth (FileteaNode *self,
-                        gdouble      max_bw_in,
-                        gdouble      max_bw_out)
-{
-  EvdStreamThrottle *throttle;
-
-  g_object_get (self,
-                "input-throttle", &throttle,
-                NULL);
-  g_object_set (throttle,
-                "bandwidth", max_bw_in,
-                NULL);
-  g_object_unref (throttle);
-
-  g_object_get (self,
-                "output-throttle", &throttle,
-                NULL);
-  g_object_set (throttle,
-                "bandwidth", max_bw_out,
-                NULL);
-  g_object_unref (throttle);
-}
-
-static void
-web_dir_on_log_entry_written (GObject      *obj,
-                              GAsyncResult *res,
-                              gpointer      user_data)
-{
-  FileteaNode *self = FILETEA_NODE (user_data);
-  gchar *entry = user_data;
-  GError *error = NULL;
-
-  g_output_stream_write_finish (G_OUTPUT_STREAM (obj), res, &error);
-  if (error != NULL)
-    {
-      g_warning ("Failed to write to log file: %s", error->message);
-      g_error_free (error);
-    }
-
-  entry = g_queue_pop_head (self->priv->log_queue);
-  g_free (entry);
-
-  if (g_queue_get_length (self->priv->log_queue) > 0)
-    {
-      entry = g_queue_peek_head (self->priv->log_queue);
-      g_output_stream_write_async (G_OUTPUT_STREAM (self->priv->log_output_stream),
-                                   entry,
-                                   strlen (entry),
-                                   G_PRIORITY_DEFAULT,
-                                   NULL,
-                                   web_dir_on_log_entry_written,
-                                   self);
-    }
-}
-
-static void
-web_dir_on_log_entry (EvdWebService *service,
-                      const gchar   *entry,
-                      gpointer       user_data)
-{
-  FileteaNode *self = FILETEA_NODE (user_data);
-  gchar *copy;
-
-  copy = g_strdup_printf ("%s\n", entry);
-
-  g_queue_push_tail (self->priv->log_queue, copy);
-
-  if (! g_output_stream_has_pending (G_OUTPUT_STREAM (self->priv->log_output_stream)))
-    g_output_stream_write_async (G_OUTPUT_STREAM (self->priv->log_output_stream),
-                                 copy,
-                                 strlen (copy),
-                                 G_PRIORITY_DEFAULT,
-                                 NULL,
-                                 web_dir_on_log_entry_written,
-                                 self);
-}
-
-static void
-setup_web_dir_logging (FileteaNode *self)
-{
-  GError *error = NULL;
-  GFile *log_file;
-
-  log_file = g_file_new_for_path (self->priv->log_filename);
-
-  self->priv->log_output_stream = g_file_append_to (log_file,
-                                                    G_FILE_CREATE_NONE,
-                                                    NULL,
-                                                    &error);
-
-  if (self->priv->log_output_stream == NULL)
-    {
-      g_warning ("Failed opening log file: %s. (HTTP logs disabled)",
-                 error->message);
-      g_error_free (error);
-
-      return;
-    }
-
-  self->priv->log_queue = g_queue_new ();
-
-  g_signal_connect (self->priv->webdir,
-                    "log-entry",
-                    G_CALLBACK (web_dir_on_log_entry),
-                    self);
-
-  g_object_unref (log_file);
-}
-
-static void
-load_config (FileteaNode *self, GKeyFile *config)
-{
-  gchar *jquery_dir;
-
-  /* source id start depth */
-  self->priv->source_id_start_depth =
-    g_key_file_get_integer (config,
-                            "node",
-                            "source-id-start-depth",
-                            NULL);
-  if (self->priv->source_id_start_depth == 0)
-    self->priv->source_id_start_depth = DEFAULT_SOURCE_ID_START_DEPTH;
-  else
-    self->priv->source_id_start_depth =
-      MIN (self->priv->source_id_start_depth, 16 + strlen (self->priv->id));
-
-  /* global bandwidth limites */
-  set_max_node_bandwidth (self,
-                          g_key_file_get_double (config,
-                                                 "node",
-                                                 "max-bandwidth-in",
-                                                 NULL),
-                          g_key_file_get_double (config,
-                                                 "node",
-                                                 "max-bandwidth-out",
-                                                 NULL));
-
-  /* force https? */
-  self->priv->force_https = g_key_file_get_boolean (config,
-                                                    "http",
-                                                    "force-https",
-                                                    NULL) == TRUE;
-  if (self->priv->force_https)
-    {
-      self->priv->https_port = g_key_file_get_integer (config,
-                                                       "https",
-                                                       "port",
-                                                       NULL);
-    }
-
-  /* log file */
-  self->priv->log_filename = g_key_file_get_string (config,
-                                                    "log",
-                                                    "http-log-file",
-                                                    NULL);
-  if (self->priv->log_filename != NULL && self->priv->log_filename[0] != '\0')
-    setup_web_dir_logging (self);
-
-  /* jquery dir */
-  jquery_dir = g_key_file_get_string (config,
-                                      "node",
-                                      "jquery-dir",
-                                      NULL);
-  if (jquery_dir == NULL || jquery_dir[0] == '\0')
-    jquery_dir = g_strdup (DEFAULT_JQUERY_DIR);
-
-  evd_web_dir_set_root (self->priv->jquery_webdir, jquery_dir);
-  g_free (jquery_dir);
+ not_found:
+  evd_web_service_respond (EVD_WEB_SERVICE (web_service),
+                           conn,
+                           SOUP_STATUS_NOT_FOUND,
+                           NULL,
+                           NULL,
+                           0,
+                           NULL);
 }
 
 /* public methods */
@@ -1465,21 +776,61 @@ FileteaNode *
 filetea_node_new (GKeyFile *config, GError **error)
 {
   FileteaNode *self;
-  gchar *id;
+  EvdTransport *transport;
+  EvdTransport *ws_transport;
+  EvdJsonrpc *rpc;
 
   g_return_val_if_fail (config != NULL, NULL);
 
-  id = g_key_file_get_string (config, "node", "id", error);
-  if (id == NULL)
-    return NULL;
+  self = g_object_new (FILETEA_TYPE_NODE, NULL);
 
-  self = g_object_new (FILETEA_NODE_TYPE, NULL);
+  /* load config */
+  if (! load_config (self, config, error))
+    goto err;
 
-  self->priv->id = id;
+  /* create web service */
+  self->priv->web_service =
+    filetea_web_service_new (config,
+                             web_service_on_content_request,
+                             self,
+                             error);
+  if (self->priv->web_service == NULL)
+    goto err;
 
-  load_config (self, config);
+  /* associate web service transport with protocol's RPC object */
+  rpc = filetea_protocol_get_rpc (self->priv->protocol);
+
+  transport = filetea_web_service_get_transport (self->priv->web_service);
+  evd_ipc_mechanism_use_transport (EVD_IPC_MECHANISM (rpc), transport);
+
+  g_object_get (transport, "websocket-service", &ws_transport, NULL);
+  evd_ipc_mechanism_use_transport (EVD_IPC_MECHANISM (rpc), ws_transport);
+
+  /* track peers coming from transport */
+  g_signal_connect (transport,
+                    "new-peer",
+                    G_CALLBACK (on_new_peer),
+                    self);
+  g_signal_connect (transport,
+                    "peer-closed",
+                    G_CALLBACK (on_peer_closed),
+                    self);
+
+  g_signal_connect (ws_transport,
+                    "new-peer",
+                    G_CALLBACK (on_new_peer),
+                    self);
+  g_signal_connect (ws_transport,
+                    "peer-closed",
+                    G_CALLBACK (on_peer_closed),
+                    self);
+  g_object_unref (ws_transport);
 
   return self;
+
+ err:
+  g_object_unref (self);
+  return NULL;
 }
 
 const gchar *
@@ -1490,6 +841,14 @@ filetea_node_get_id (FileteaNode *self)
   return self->priv->id;
 }
 
+FileteaWebService *
+filetea_node_get_web_service (FileteaNode *self)
+{
+  g_return_val_if_fail (FILETEA_IS_NODE (self), NULL);
+
+  return self->priv->web_service;
+}
+
 #ifdef ENABLE_TESTS
 
 FileteaProtocol *
@@ -1498,6 +857,14 @@ filetea_node_get_protocol (FileteaNode *self)
   g_return_val_if_fail (FILETEA_IS_NODE (self), NULL);
 
   return self->priv->protocol;
+}
+
+GList *
+filetea_node_get_all_sources (FileteaNode *self)
+{
+  g_return_val_if_fail (FILETEA_IS_NODE (self), NULL);
+
+  return g_hash_table_get_values (self->priv->sources_by_id);
 }
 
 #endif /* ENABLE_TESTS */

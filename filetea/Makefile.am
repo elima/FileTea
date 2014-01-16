@@ -3,27 +3,32 @@ MAINTAINERCLEANFILES = \
 
 htmldatadir = $(datadir)/filetea
 
-sbin_PROGRAMS = filetea
+sbin_PROGRAMS = \
+	filetea
 
-filetea_CFLAGS = \
+common_CFLAGS = \
 	-Wall \
 	$(EVD_CFLAGS) \
 	$(JSON_CFLAGS) \
-	$(UUID_CFLAGS) \
-	-DENABLE_TESTS="\"$(enable_tests)\"" \
-	-DHTML_DATA_DIR="\"$(htmldatadir)\""
+	-DENABLE_TESTS="\"$(enable_tests)\""
 
 if ENABLE_DEBUG
-filetea_CFLAGS += -Werror -g3 -O0 -ggdb
+common_CFLAGS += -Werror -g3 -O0 -ggdb
 else
-filetea_CFLAGS += -DG_DISABLE_ASSERT -DG_DISABLE_CHECKS
+common_CFLAGS += -DG_DISABLE_ASSERT -DG_DISABLE_CHECKS
 endif
 
-filetea_LDADD = \
+common_LDADD = \
 	$(EVD_LIBS) \
 	$(JSON_LIBS) \
 	$(UUID_LIBS) \
 	-lgcrypt
+
+# FileTea server daemon
+filetea_CFLAGS = $(common_CFLAGS) \
+	-DHTML_DATA_DIR="\"$(htmldatadir)\""
+
+filetea_LDADD = $(common_LDADD)
 
 source_c = \
 	filetea-source.c \
