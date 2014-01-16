@@ -1,22 +1,20 @@
 SUBDIRS = \
 	filetea \
-	html \
 	tests
 
 DIST_SUBDIRS = \
 	filetea \
-	html \
 	tests
 
 EXTRA_DIST = \
 	autogen.sh \
-	filetea.8 \
-	filetea.conf
+	filetead.8 \
+	filetead.conf
 
-man8_MANS = filetea.8
+man8_MANS = filetead.8
 
 configdir = $(sysconfdir)/filetea
-config_DATA = filetea.conf
+config_DATA = filetead.conf
 
 CLEANFILES = *~
 

@@ -2,7 +2,7 @@
 .\" First parameter, NAME, should be all caps
 .\" Second parameter, SECTION, should be 1-8, maybe w/ subsection
 .\" other parameters are allowed: see man(7), man(1)
-.TH filetea 8 "2011\-10\-21"
+.TH filetead 8 "2014\-01\-16"
 .\" Please adjust this date whenever revising the manpage.
 .\"
 .\" Some roff macros, for reference:
@@ -16,13 +16,13 @@
 .\" .sp <n>    insert n+1 empty lines
 .\" for manpage-specific macros, see man(7)
 .SH NAME
-filetea \- Web based file sharing service daemon
+filetead \- Web based file sharing service daemon
 .SH SYNOPSIS
-.B filetea
+.B filetead
 .I [OPTIONS]
 .SH DESCRIPTION
 This manual page documents briefly the
-.B filetea
+.B filetead
 command.
 .PP
 .B FileTea
@@ -31,9 +31,8 @@ only a standard browser as client. Unlike traditional Web based
 file-sharing services, FileTea does not store files server-side. Instead,
 files are just routed on-the-fly from seeder to leecher, through the server.
 
-filetea is the service daemon that runs on a FileTea server. It handles peer
-synchronization, file routing and status reporting; and also acts as
-web-server for static HTML content when run in standalone mode.
+filetead is the service daemon that runs on a FileTea server. It handles peer
+synchronization, file routing and status reporting.
 
 .SH OPTIONS
 .TP
@@ -43,7 +42,7 @@ values.
 .TP
 .BI \-c " config\fR, " \-\^\-conf= "config"
 Absolute path for the configuration file to use, default is
-.I /etc/filetea/filetea.conf.
+.I /etc/filetea/filetead.conf.
 .TP
 .BI \-D "\fR, " \-\^\-daemonize
 Run the service in the background.
@@ -57,7 +56,7 @@ Port to listen on for secure HTTP service (https), overriding the value
 specified in configuration file.
 .SH FILES
 .TP
-.I /etc/filetea/filetea.conf
+.I /etc/filetea/filetead.conf
 Filetea config file.
 .SH AUTHOR
 This manpage has been written by

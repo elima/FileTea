@@ -1,5 +1,5 @@
 /*
- * main.c
+ * filetead-main.c
  *
  * FileTea, low-friction file sharing <http://filetea.net>
  *
@@ -66,12 +66,12 @@ finish_setup (void)
       g_free (user);
     }
 
-  g_debug ("Setup completed, FileTea daemon running...");
+  g_print ("Setup completed, FileTea daemon running...\n");
 
   return;
 
  quit:
-  g_debug ("%s", error->message);
+  g_print ("%s\n", error->message);
   g_error_free (error);
 
   evd_daemon_quit (evd_daemon, -1);
@@ -88,7 +88,7 @@ node_on_listen (GObject      *service,
   if (! evd_service_listen_finish (EVD_SERVICE (service), result, &error))
     goto quit;
 
-  g_debug ("Listening on port %u", *port);
+  g_print ("Listening on port %u\n", *port);
 
   setup_pending--;
   if (setup_pending == 0)
@@ -97,7 +97,7 @@ node_on_listen (GObject      *service,
   return;
 
  quit:
-  g_debug ("ERROR listening on port %u: %s", *port, error->message);
+  g_print ("ERROR listening on port %u: %s\n", *port, error->message);
   g_error_free (error);
 
   evd_daemon_quit (evd_daemon, -1);
@@ -115,14 +115,14 @@ on_tls_certificate_loaded (GObject      *obj,
                                                               res,
                                                               &error))
     {
-      g_debug ("ERROR loading TLS certificate: %s", error->message);
+      g_print ("ERROR loading TLS certificate: %s\n", error->message);
       g_error_free (error);
 
       evd_daemon_quit (evd_daemon, -1);
     }
   else
     {
-      g_debug ("TLS certificate loaded");
+      g_print ("TLS certificate loaded\n");
 
       setup_pending--;
       if (setup_pending == 0)
@@ -313,7 +313,7 @@ main (gint argc, gchar *argv[])
   g_option_context_add_main_entries (context, entries, NULL);
   if (! g_option_context_parse (context, &argc, &argv, &error))
     {
-      g_debug ("ERROR parsing commandline options: %s", error->message);
+      g_print ("ERROR parsing commandline options: %s\n", error->message);
       g_error_free (error);
 
       exit_status = -1;
@@ -330,7 +330,7 @@ main (gint argc, gchar *argv[])
                                    G_KEY_FILE_NONE,
                                    &error))
     {
-      g_debug ("ERROR loading configuration: %s", error->message);
+      g_print ("ERROR loading configuration: %s\n", error->message);
       g_error_free (error);
 
       exit_status = -1;
@@ -348,7 +348,7 @@ main (gint argc, gchar *argv[])
     {
       if (! setup_https_node (config, &error))
         {
-          g_debug ("ERROR setting up HTTPS node: %s", error->message);
+          g_print ("ERROR setting up HTTPS node: %s\n", error->message);
           g_error_free (error);
 
           exit_status = -1;
@@ -361,7 +361,7 @@ main (gint argc, gchar *argv[])
     {
       if (! setup_http_node (config, &error))
         {
-          g_debug ("ERROR setting up HTTP node: %s", error->message);
+          g_print ("ERROR setting up HTTP node: %s\n", error->message);
           g_error_free (error);
 
           exit_status = -1;
@@ -380,7 +380,7 @@ main (gint argc, gchar *argv[])
   /* start the show */
   if ((exit_status = evd_daemon_run (evd_daemon, &error)) < 0)
     {
-      g_debug ("ERROR running daemon: %s", error->message);
+      g_print ("ERROR running daemon: %s\n", error->message);
       g_error_free (error);
     }
 
@@ -400,7 +400,7 @@ main (gint argc, gchar *argv[])
 
   evd_tls_deinit ();
 
-  g_print ("FileTea daemon terminated\n");
+  g_print ("\nFileTea server terminated\n");
 
   return exit_status;
 }
