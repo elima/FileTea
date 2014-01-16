@@ -3,7 +3,7 @@
  *
  * FileTea, low-friction file sharing <http://filetea.net>
  *
- * Copyright (C) 2012, Igalia S.L.
+ * Copyright (C) 2012-2014, Igalia S.L.
  *
  * Authors:
  *   Eduardo Lima Mitev <elima@igalia.com>
@@ -25,7 +25,8 @@
 
 #include <evd.h>
 
-#include <filetea-source.h>
+#include "filetea-source.h"
+#include "filetea-transfer.h"
 
 G_BEGIN_DECLS
 
@@ -35,17 +36,37 @@ typedef struct _FileteaProtocolPrivate FileteaProtocolPrivate;
 
 typedef struct
 {
-  void     (* register_source)   (FileteaProtocol  *self,
+  gboolean (* register_source)   (FileteaProtocol  *self,
                                   EvdPeer          *peer,
                                   FileteaSource    *source,
-                                  gchar           **id,
-                                  gchar           **signature,
+                                  GError          **error,
                                   gpointer          user_data);
   gboolean (* unregister_source) (FileteaProtocol  *self,
                                   EvdPeer          *peer,
                                   const gchar      *id,
                                   gboolean          gracefully,
                                   gpointer          user_data);
+
+  void     (* content_request)   (FileteaProtocol    *self,
+                                  FileteaSource      *source,
+                                  EvdHttpConnection  *conn,
+                                  const gchar        *action,
+                                  const gchar        *peer_id,
+                                  gboolean            is_chunked,
+                                  SoupRange          *byte_range,
+                                  gpointer            user_data);
+  void     (* content_push)      (FileteaProtocol    *self,
+                                  FileteaTransfer    *transfer,
+                                  EvdHttpConnection  *conn,
+                                  gpointer            user_data);
+
+  void     (* seeder_push_request) (FileteaProtocol *self,
+                                    GAsyncResult    *result,
+                                    const gchar     *source_id,
+                                    const gchar     *transfer_id,
+                                    gboolean         is_chunked,
+                                    SoupRange       *byte_range,
+                                    gpointer         user_data);
 
 } FileteaProtocolVTable;
 
@@ -76,6 +97,27 @@ FileteaProtocol * filetea_protocol_new                     (FileteaProtocolVTabl
                                                             GDestroyNotify         user_data_free_func);
 
 EvdJsonrpc *      filetea_protocol_get_rpc                 (FileteaProtocol *self);
+
+gboolean          filetea_protocol_handle_content_request  (FileteaProtocol    *self,
+                                                            FileteaSource      *source,
+                                                            EvdWebService      *web_service,
+                                                            EvdHttpConnection  *conn,
+                                                            EvdHttpRequest     *request,
+                                                            GError            **error);
+gboolean          filetea_protocol_handle_content_push     (FileteaProtocol    *self,
+                                                            FileteaTransfer    *transfer,
+                                                            EvdWebService      *web_service,
+                                                            EvdHttpConnection  *conn,
+                                                            EvdHttpRequest     *request,
+                                                            GError            **error);
+
+gboolean          filetea_protocol_request_content         (FileteaProtocol  *self,
+                                                            EvdPeer          *peer,
+                                                            const gchar      *source_id,
+                                                            const gchar      *transfer_id,
+                                                            gboolean          is_chunked,
+                                                            SoupRange        *byte_range,
+                                                            GError          **error);
 
 G_END_DECLS
 
