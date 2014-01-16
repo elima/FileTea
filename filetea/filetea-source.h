@@ -86,6 +86,8 @@ void              filetea_source_set_signature           (FileteaSource *self,
                                                           const gchar   *signature);
 const gchar *     filetea_source_get_signature           (FileteaSource *self);
 
+GCancellable *    filetea_source_get_cancellable         (FileteaSource *self);
+
 G_END_DECLS
 
 #endif /* __FILETEA_SOURCE_H__ */
