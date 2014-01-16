@@ -26,8 +26,6 @@ filetea_LDADD = \
 	-lgcrypt
 
 source_c = \
-	file-source.c \
-	file-transfer.c \
 	filetea-source.c \
 	filetea-protocol.c \
 	filetea-web-service.c \
@@ -35,8 +33,6 @@ source_c = \
 	filetea-node.c
 
 source_h = \
-	file-source.h \
-	file-transfer.h \
 	filetea-source.h \
 	filetea-protocol.h \
 	filetea-web-service.h \
