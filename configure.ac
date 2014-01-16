@@ -76,7 +76,6 @@ AM_CONDITIONAL(ENABLE_DEBUG, test x"${enable_debug}" = x"yes")
 AC_OUTPUT([
 	Makefile
         filetea/Makefile
-        html/Makefile
         tests/Makefile
 ])
 
