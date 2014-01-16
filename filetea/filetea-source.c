@@ -227,6 +227,14 @@ filetea_source_get_signature (FileteaSource *self)
   return self->priv->signature;
 }
 
+gboolean
+filetea_source_is_chunkable (FileteaSource *self)
+{
+  g_return_val_if_fail (FILETEA_IS_SOURCE (self), FALSE);
+
+  return (self->priv->flags & FILETEA_SOURCE_FLAGS_CHUNKABLE);
+}
+
 GCancellable *
 filetea_source_get_cancellable (FileteaSource *self)
 {
