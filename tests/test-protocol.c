@@ -228,11 +228,10 @@ typedef struct
   EvdPeer *peer;
 } Fixture;
 
-static void            register_source             (FileteaProtocol  *protocol,
+static gboolean        register_source             (FileteaProtocol  *protocol,
                                                     EvdPeer          *peer,
                                                     FileteaSource    *source,
-                                                    gchar           **id,
-                                                    gchar           **signature,
+                                                    GError          **error,
                                                     gpointer          user_data);
 static gboolean        unregister_source           (FileteaProtocol *protocol,
                                                     EvdPeer         *peer,
@@ -274,12 +273,11 @@ test_new (Fixture       *f,
   g_assert (EVD_IS_JSONRPC (filetea_protocol_get_rpc (f->protocol)));
 }
 
-static void
+static gboolean
 register_source (FileteaProtocol  *protocol,
                  EvdPeer          *peer,
                  FileteaSource    *source,
-                 gchar           **id,
-                 gchar           **signature,
+                 GError          **error,
                  gpointer          user_data)
 {
   Fixture *f = user_data;
@@ -309,10 +307,10 @@ register_source (FileteaProtocol  *protocol,
       g_assert_cmpstr (tags[3], ==, NULL);
     }
 
-  *id = g_strdup ("1234abcd");
-  *signature = g_strdup ("some secret signature");
+  filetea_source_set_id (source, "1234abcd");
+  filetea_source_set_signature (source, "some secret signature");
 
-  g_object_unref (source);
+  return TRUE;
 }
 
 static gboolean
@@ -364,7 +362,10 @@ main (gint argc, gchar *argv[])
 {
   gint i;
 
+#ifndef GLIB_VERSION_2_36
   g_type_init ();
+#endif
+
   g_test_init (&argc, &argv, NULL);
 
   g_test_add ("/protocol/new",
