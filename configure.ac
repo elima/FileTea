@@ -2,7 +2,7 @@
 #
 # FileTea, low-friction file sharing <http://filetea.net>
 #
-# Copyright (C) 2011-2013, Igalia S.L.
+# Copyright (C) 2011-2014, Igalia S.L.
 #
 # Authors:
 #   Eduardo Lima Mitev <elima@igalia.com>
@@ -51,8 +51,7 @@ PKG_PROG_PKG_CONFIG
 
 # Required libraries
 PKG_CHECK_MODULES(JSON, json-glib-1.0 >= 0.10.0)
-PKG_CHECK_MODULES(EVD, evd-0.1 >= 0.1.25)
-#PKG_CHECK_MODULES(UUID, uuid)
+PKG_CHECK_MODULES(EVD, evd-0.1 >= 0.1.28)
 
 # Silent build
 m4_ifdef([AM_SILENT_RULES],[AM_SILENT_RULES([yes])])
