@@ -123,8 +123,7 @@ filetea_source_new (EvdPeer      *peer,
 
   self = g_object_new (FILETEA_SOURCE_TYPE, NULL);
 
-  self->priv->peer = peer;
-  g_object_ref (self->priv->peer);
+  self->priv->peer = g_object_ref (peer);
 
   self->priv->name = g_strdup (name);
   self->priv->type = g_strdup (type);
@@ -134,6 +133,16 @@ filetea_source_new (EvdPeer      *peer,
     self->priv->tags = g_strdupv ((gchar **) tags);
 
   return self;
+}
+
+void
+filetea_source_set_peer (FileteaSource *self, EvdPeer *peer)
+{
+  g_return_if_fail (FILETEA_IS_SOURCE (self));
+  g_return_if_fail (EVD_IS_PEER (peer));
+
+  g_object_unref (self->priv->peer);
+  self->priv->peer = g_object_ref (peer);
 }
 
 EvdPeer *
