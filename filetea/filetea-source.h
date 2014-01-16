@@ -82,6 +82,10 @@ void              filetea_source_set_id                  (FileteaSource *self,
                                                           const gchar   *id);
 const gchar *     filetea_source_get_id                  (FileteaSource *self);
 
+void              filetea_source_set_signature           (FileteaSource *self,
+                                                          const gchar   *signature);
+const gchar *     filetea_source_get_signature           (FileteaSource *self);
+
 G_END_DECLS
 
 #endif /* __FILETEA_SOURCE_H__ */

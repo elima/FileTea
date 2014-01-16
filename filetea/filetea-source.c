@@ -32,6 +32,7 @@ G_DEFINE_TYPE (FileteaSource, filetea_source, G_TYPE_OBJECT)
 struct _FileteaSourcePrivate
 {
   gchar *id;
+  gchar *signature;
   EvdPeer *peer;
   guint flags;
   gchar *name;
@@ -66,6 +67,7 @@ filetea_source_init (FileteaSource *self)
   self->priv = priv;
 
   priv->id = NULL;
+  priv->signature = NULL;
   priv->tags = NULL;
 }
 
@@ -89,6 +91,7 @@ filetea_source_finalize (GObject *obj)
   FileteaSource *self = FILETEA_SOURCE (obj);
 
   g_free (self->priv->id);
+  g_free (self->priv->signature);
   g_free (self->priv->name);
   g_free (self->priv->type);
   g_strfreev (self->priv->tags);
@@ -190,4 +193,21 @@ filetea_source_get_id (FileteaSource *self)
   g_return_val_if_fail (FILETEA_IS_SOURCE (self), NULL);
 
   return self->priv->id;
+}
+
+void
+filetea_source_set_signature (FileteaSource *self, const gchar *signature)
+{
+  g_return_if_fail (FILETEA_IS_SOURCE (self));
+  g_return_if_fail (signature != NULL);
+
+  self->priv->signature = g_strdup (signature);
+}
+
+const gchar *
+filetea_source_get_signature (FileteaSource *self)
+{
+  g_return_val_if_fail (FILETEA_IS_SOURCE (self), NULL);
+
+  return self->priv->signature;
 }
