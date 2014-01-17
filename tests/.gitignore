@@ -1,2 +1,4 @@
 test-node-sources
 test-protocol
+*.log
+*.trs
