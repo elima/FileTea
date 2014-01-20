@@ -171,6 +171,14 @@ filetea_source_get_content_type (FileteaSource *self)
   return self->priv->type;
 }
 
+void
+filetea_source_set_size (FileteaSource *self, gsize size)
+{
+  g_return_if_fail (FILETEA_IS_SOURCE (self));
+
+  self->priv->size = size;
+}
+
 gsize
 filetea_source_get_size (FileteaSource *self)
 {

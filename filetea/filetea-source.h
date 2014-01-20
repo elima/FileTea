@@ -50,8 +50,6 @@ struct _FileteaSource
 struct _FileteaSourceClass
 {
   EvdWebServiceClass parent_class;
-
-  /* signal prototypes */
 };
 
 #define FILETEA_SOURCE_TYPE           (filetea_source_get_type ())
@@ -77,6 +75,8 @@ EvdPeer *         filetea_source_get_peer                (FileteaSource *self);
 
 const gchar *     filetea_source_get_name                (FileteaSource  *self);
 const gchar *     filetea_source_get_content_type        (FileteaSource  *self);
+void              filetea_source_set_size                (FileteaSource *self,
+                                                          gsize          size);
 gsize             filetea_source_get_size                (FileteaSource  *self);
 guint             filetea_source_get_flags               (FileteaSource  *self);
 const gchar **    filetea_source_get_tags                (FileteaSource  *self);
