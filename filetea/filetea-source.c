@@ -201,6 +201,7 @@ filetea_source_set_id (FileteaSource *self, const gchar *id)
   g_return_if_fail (FILETEA_IS_SOURCE (self));
   g_return_if_fail (id != NULL && strlen (id) > 6);
 
+  g_free (self->priv->id);
   self->priv->id = g_strdup (id);
 }
 
@@ -218,6 +219,7 @@ filetea_source_set_signature (FileteaSource *self, const gchar *signature)
   g_return_if_fail (FILETEA_IS_SOURCE (self));
   g_return_if_fail (signature != NULL);
 
+  g_free (self->priv->signature);
   self->priv->signature = g_strdup (signature);
 }
 
