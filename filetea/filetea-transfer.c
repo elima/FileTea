@@ -28,7 +28,7 @@ G_DEFINE_TYPE (FileteaTransfer, filetea_transfer, G_TYPE_OBJECT)
                                            FILETEA_TYPE_TRANSFER, \
                                            FileteaTransferPrivate))
 
-#define BLOCK_SIZE 0x0FFE
+#define BLOCK_SIZE 0x4000
 
 #define START_TIMEOUT 30000 /* in miliseconds */
 
