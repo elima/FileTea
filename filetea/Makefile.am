@@ -24,7 +24,6 @@ endif
 common_LDADD = \
 	$(EVD_LIBS) \
 	$(JSON_LIBS) \
-	$(UUID_LIBS) \
 	-lgcrypt
 
 common_source_c = \
