@@ -780,15 +780,15 @@ rpc_on_register_sources (GObject      *obj,
         {
           JsonObject *obj;
           JsonNode *err_member;
+          FileteaSource *source;
 
           obj = json_array_get_object_element (arr, i);
           err_member = json_object_get_member (obj, "error");
 
+          source = FILETEA_SOURCE (node->data);
+
           if (json_node_is_null (err_member))
             {
-              FileteaSource *source;
-
-              source = FILETEA_SOURCE (node->data);
               filetea_source_set_id (source,
                                      json_object_get_string_member (obj, "id"));
               filetea_source_set_signature (source,
@@ -797,8 +797,10 @@ rpc_on_register_sources (GObject      *obj,
             }
           else
             {
-              g_print ("Error registering source: %s\n",
-                       json_node_get_string (err_member));
+              filetea_source_take_error (source,
+                                         g_error_new (G_IO_ERROR,
+                                            G_IO_ERROR_INVALID_ARGUMENT,
+                                            json_node_get_string (err_member)));
             }
 
           node = g_list_next (node);
