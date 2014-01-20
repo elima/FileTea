@@ -192,8 +192,6 @@ request_handler (EvdWebService     *web_service,
 
   uri = evd_http_request_get_uri (request);
 
-  // g_print ("%s\n", soup_uri_to_string (uri, FALSE));
-
   if ( (self->priv->force_https &&
         ! evd_connection_get_tls_active (EVD_CONNECTION (conn))) ||
        (self->priv->server_name != NULL &&
@@ -247,7 +245,6 @@ request_handler (EvdWebService     *web_service,
   else
     {
       /* if none of the above, assume it is a content related request */
-      g_print ("content related request\n");
       self->priv->content_req_cb (self,
                                   tokens[1],
                                   conn,
