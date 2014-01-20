@@ -41,6 +41,7 @@ struct _FileteaSourcePrivate
   gchar **tags;
 
   GCancellable *cancellable;
+  GError *error;
 };
 
 static void     filetea_source_class_init         (FileteaSourceClass *class);
@@ -73,6 +74,7 @@ filetea_source_init (FileteaSource *self)
   priv->tags = NULL;
 
   priv->cancellable = g_cancellable_new ();
+  priv->error = NULL;
 }
 
 static void
@@ -101,6 +103,9 @@ filetea_source_finalize (GObject *obj)
   g_strfreev (self->priv->tags);
 
   g_object_unref (self->priv->cancellable);
+
+  if (self->priv->error != NULL)
+    g_error_free (self->priv->error);
 
   G_OBJECT_CLASS (filetea_source_parent_class)->finalize (obj);
 }
@@ -253,4 +258,20 @@ filetea_source_get_cancellable (FileteaSource *self)
   g_return_val_if_fail (FILETEA_IS_SOURCE (self), NULL);
 
   return self->priv->cancellable;
+}
+
+void
+filetea_source_take_error (FileteaSource *self, GError *error)
+{
+  g_return_if_fail (FILETEA_IS_SOURCE (self));
+
+  self->priv->error = error;
+}
+
+GError *
+filetea_source_get_error (FileteaSource *self)
+{
+  g_return_val_if_fail (FILETEA_IS_SOURCE (self), NULL);
+
+  return self->priv->error;
 }

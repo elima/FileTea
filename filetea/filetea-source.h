@@ -93,6 +93,10 @@ gboolean          filetea_source_is_chunkable            (FileteaSource *self);
 
 GCancellable *    filetea_source_get_cancellable         (FileteaSource *self);
 
+void              filetea_source_take_error              (FileteaSource *self,
+                                                          GError        *error);
+GError *          filetea_source_get_error               (FileteaSource *self);
+
 G_END_DECLS
 
 #endif /* __FILETEA_SOURCE_H__ */
