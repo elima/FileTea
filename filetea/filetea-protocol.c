@@ -995,3 +995,77 @@ filetea_protocol_request_content (FileteaProtocol  *self,
 
   return result;
 }
+
+void
+filetea_protocol_register_sources (FileteaProtocol     *self,
+                                   EvdPeer             *peer,
+                                   GList               *sources,
+                                   GCancellable        *cancellable,
+                                   GAsyncReadyCallback  callback,
+                                   gpointer             user_data)
+{
+  GSimpleAsyncResult *result;
+  JsonNode *params;
+  JsonArray *arr;
+  GList *node;
+
+  g_return_if_fail (FILETEA_IS_PROTOCOL (self));
+  g_return_if_fail (EVD_IS_PEER (peer));
+  g_return_if_fail (sources != NULL);
+
+  result = g_simple_async_result_new (G_OBJECT (self),
+                                      callback,
+                                      user_data,
+                                      filetea_protocol_register_sources);
+
+  g_simple_async_result_set_op_res_gpointer (result, sources, NULL);
+
+  params = json_node_new (JSON_NODE_ARRAY);
+  arr = json_array_new ();
+  json_node_take_array (params, arr);
+
+  node = sources;
+  while (node != NULL)
+    {
+      FileteaSource *source;
+      JsonNode *source_json;
+
+      g_assert (FILETEA_IS_SOURCE (node->data));
+      source = FILETEA_SOURCE (node->data);
+
+      source_json = filetea_source_to_json (source);
+      json_array_add_element (arr, source_json);
+
+      node = g_list_next (node);
+    }
+
+  evd_jsonrpc_call_method (self->priv->rpc,
+                           OP_REGISTER,
+                           params,
+                           peer,
+                           cancellable,
+                           rpc_on_register_sources,
+                           result);
+
+  json_node_free (params);
+}
+
+gboolean
+filetea_protocol_register_sources_finish (FileteaProtocol  *self,
+                                          GAsyncResult     *result,
+                                          GList           **sources,
+                                          GError          **error)
+{
+  GSimpleAsyncResult *res = G_SIMPLE_ASYNC_RESULT (result);
+
+  g_return_val_if_fail (FILETEA_IS_PROTOCOL (self), FALSE);
+  g_return_val_if_fail (g_simple_async_result_is_valid (result,
+                                             G_OBJECT (self),
+                                             filetea_protocol_register_sources),
+                        FALSE);
+
+  if (sources != NULL)
+    *sources = g_simple_async_result_get_op_res_gpointer (res);
+
+  return ! g_simple_async_result_propagate_error (res, error);
+}

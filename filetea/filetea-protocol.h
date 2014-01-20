@@ -119,6 +119,17 @@ gboolean          filetea_protocol_request_content         (FileteaProtocol  *se
                                                             SoupRange        *byte_range,
                                                             GError          **error);
 
+void              filetea_protocol_register_sources        (FileteaProtocol     *self,
+                                                            EvdPeer             *peer,
+                                                            GList               *sources,
+                                                            GCancellable        *cancellable,
+                                                            GAsyncReadyCallback  callback,
+                                                            gpointer             user_data);
+gboolean          filetea_protocol_register_sources_finish (FileteaProtocol  *self,
+                                                            GAsyncResult     *result,
+                                                            GList           **sources,
+                                                            GError          **error);
+
 G_END_DECLS
 
 #endif /* __FILETEA_PROTOCOL_H__ */
