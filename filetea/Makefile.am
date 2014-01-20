@@ -6,6 +6,9 @@ htmldatadir = $(datadir)/filetea
 sbin_PROGRAMS = \
 	filetead
 
+bin_PROGRAMS = \
+	filetea
+
 common_CFLAGS = \
 	-Wall \
 	$(EVD_CFLAGS) \
@@ -49,3 +52,12 @@ filetead_SOURCES = \
 	filetea-web-service.h \
 	filetea-node.h
 
+# FileTea client
+filetea_CFLAGS = $(common_CFLAGS)
+
+filetea_LDADD = $(common_LDADD)
+
+filetea_SOURCES = \
+	filetea-main.c \
+	$(common_source_c) \
+	$(common_source_h)
