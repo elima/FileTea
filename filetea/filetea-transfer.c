@@ -198,8 +198,6 @@ filetea_transfer_on_target_can_write (EvdConnection *target_conn,
 {
   FileteaTransfer *self = user_data;
 
-  g_print ("can write now\n");
-
   evd_connection_unlock_close (EVD_CONNECTION (self->priv->source_conn));
   filetea_transfer_read (self);
 }
@@ -215,14 +213,12 @@ filetea_transfer_on_read (GObject      *obj,
   EvdStreamThrottle *throttle;
 
   size = g_input_stream_read_finish (G_INPUT_STREAM (obj), res, &error);
-  g_print ("read: %lu\n", size);
-
   if (size < 0)
     {
       g_print ("ERROR reading from source: %s\n", error->message);
       g_simple_async_result_take_error (self->priv->result, error);
-      // filetea_transfer_complete (self);
-      return;
+      filetea_transfer_complete (self);
+      goto out;
     }
 
   if (! evd_http_connection_write_content (self->priv->target_conn,
@@ -233,8 +229,8 @@ filetea_transfer_on_read (GObject      *obj,
     {
       g_print ("ERROR writing to target: %s\n", error->message);
       g_simple_async_result_take_error (self->priv->result, error);
-      // filetea_transfer_complete (self);
-      return;
+      filetea_transfer_complete (self);
+      goto out;
     }
 
   self->priv->transferred += size;
@@ -270,6 +266,7 @@ filetea_transfer_on_read (GObject      *obj,
       filetea_transfer_read (self);
     }
 
+ out:
   g_object_unref (self);
 }
 
@@ -295,7 +292,6 @@ filetea_transfer_read (FileteaTransfer *self)
       if (size <= 0)
         return;
 
-      g_print ("reading...\n");
       g_object_ref (self);
       g_input_stream_read_async (stream,
                                  self->priv->buf,
@@ -307,7 +303,6 @@ filetea_transfer_read (FileteaTransfer *self)
     }
   else
     {
-      g_print ("cannot write now\n");
       evd_connection_lock_close (EVD_CONNECTION (self->priv->source_conn));
     }
 }
