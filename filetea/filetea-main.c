@@ -310,8 +310,8 @@ push_request_conn_can_write (EvdConnection *conn, gpointer user_data)
   struct PushRequest *push_req = user_data;
 
   g_signal_handlers_disconnect_by_func (conn,
-                                        "write",
-                                        push_request_conn_can_write);
+                                        push_request_conn_can_write,
+                                        push_req);
 
   push_request_read_block (push_req);
 }
