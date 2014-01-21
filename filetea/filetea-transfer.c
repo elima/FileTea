@@ -215,7 +215,8 @@ filetea_transfer_on_read (GObject      *obj,
   size = g_input_stream_read_finish (G_INPUT_STREAM (obj), res, &error);
   if (size < 0)
     {
-      g_print ("ERROR reading from source: %s\n", error->message);
+      g_printerr ("ERROR reading from source: %s\n", error->message);
+
       g_simple_async_result_take_error (self->priv->result, error);
       self->priv->status = FILETEA_TRANSFER_STATUS_ERROR;
       filetea_transfer_complete (self);
@@ -228,7 +229,8 @@ filetea_transfer_on_read (GObject      *obj,
                                            TRUE,
                                            &error))
     {
-      g_print ("ERROR writing to target: %s\n", error->message);
+      g_printerr ("ERROR writing to target: %s\n", error->message);
+
       g_simple_async_result_take_error (self->priv->result, error);
       self->priv->status = FILETEA_TRANSFER_STATUS_ERROR;
       filetea_transfer_complete (self);
@@ -258,7 +260,7 @@ filetea_transfer_on_read (GObject      *obj,
                                      0,
                                      &error))
         {
-          g_print ("Error sending response to source: %s\n", error->message);
+          g_printerr ("Error sending response to source: %s\n", error->message);
           g_error_free (error);
           self->priv->status = FILETEA_TRANSFER_STATUS_ERROR;
         }
@@ -576,7 +578,7 @@ filetea_transfer_start (FileteaTransfer *self)
                                          headers,
                                          &error))
     {
-      g_print ("Error sending transfer target headers: %s\n", error->message);
+      g_printerr ("Error sending transfer target headers: %s\n", error->message);
       g_error_free (error);
 
       /* @TODO: abort the transfer */

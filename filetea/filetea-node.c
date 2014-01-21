@@ -35,16 +35,6 @@ G_DEFINE_TYPE (FileteaNode, filetea_node, G_TYPE_OBJECT)
 
 #define DEFAULT_SOURCE_ID_START_DEPTH 8
 
-/*
-#define FILETEA_ERROR_DOMAIN_STR "me.filetea.ErrorDomain"
-#define FILETEA_ERROR            g_quark_from_string (FILETEA_ERROR_DOMAIN_STR)
-
-typedef enum {
-  FILETEA_ERROR_NONE,
-  FILETEA_ERROR_SOURCE_NOT_FOUND,
-} FileteaErrorEnum;
-*/
-
 /* private data */
 struct _FileteaNodePrivate
 {
@@ -151,6 +141,7 @@ filetea_node_init (FileteaNode *self)
                            g_free,
                            g_object_unref);
 
+  /* @TODO: not yet implemented */
   /*
   self->priv->transfers_by_peer =
     g_hash_table_new_full (g_direct_hash,
@@ -536,13 +527,12 @@ transfer_on_completed (GObject      *obj,
 
   if (! filetea_transfer_finish (transfer, result, &error))
     {
-      g_print ("Transfer failed: %s\n", error->message);
+      g_printerr ("Transfer failed: %s\n", error->message);
       g_error_free (error);
     }
   else
     {
-      /* @TODO */
-      /*      g_print ("Transfer completed\n"); */
+      /* @TODO: log transfer completed */
     }
 
   /* remove transfer */
@@ -622,7 +612,7 @@ content_request (FileteaProtocol    *protocol,
 
   if (error != NULL)
     {
-      g_print ("Failed to notify source peer of new transfer: %s\n", error->message);
+      g_printerr ("Failed to notify source peer of new transfer: %s\n", error->message);
       g_error_free (error);
 
       /* @TODO: abort transfer */
@@ -630,8 +620,6 @@ content_request (FileteaProtocol    *protocol,
     }
 
   /* @TODO: set transfer bandwidth limits */
-
-  g_print ("requested '%s'\n", filetea_source_get_name (source));
 }
 
 static void
@@ -665,7 +653,7 @@ on_new_peer (EvdTransport *transport,
              EvdPeer      *peer,
              gpointer      user_data)
 {
-  g_print ("New peer %s\n", evd_peer_get_id (peer));
+  /* @TODO: log new peers */
 }
 
 static void
@@ -687,7 +675,7 @@ on_peer_closed (EvdTransport *transport,
       g_hash_table_remove (self->priv->sources_by_peer, peer);
     }
 
-  g_print ("Closed peer %s\n", evd_peer_get_id (peer));
+  /* @TODO: log closed peers */
 }
 
 static void
@@ -732,7 +720,7 @@ web_service_on_content_request (FileteaWebService *web_service,
                                       request,
                                       &error))
         {
-          g_print ("Failed: %s\n", error->message);
+          g_printerr ("Failed: %s\n", error->message);
           g_error_free (error);
         }
     }
@@ -753,7 +741,7 @@ web_service_on_content_request (FileteaWebService *web_service,
                                       request,
                                       &error))
         {
-          g_print ("Failed: %s\n", error->message);
+          g_printerr ("Failed: %s\n", error->message);
           g_error_free (error);
         }
     }
