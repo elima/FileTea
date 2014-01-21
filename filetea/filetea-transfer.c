@@ -217,6 +217,7 @@ filetea_transfer_on_read (GObject      *obj,
     {
       g_print ("ERROR reading from source: %s\n", error->message);
       g_simple_async_result_take_error (self->priv->result, error);
+      self->priv->status = FILETEA_TRANSFER_STATUS_ERROR;
       filetea_transfer_complete (self);
       goto out;
     }
@@ -229,7 +230,9 @@ filetea_transfer_on_read (GObject      *obj,
     {
       g_print ("ERROR writing to target: %s\n", error->message);
       g_simple_async_result_take_error (self->priv->result, error);
+      self->priv->status = FILETEA_TRANSFER_STATUS_ERROR;
       filetea_transfer_complete (self);
+
       goto out;
     }
 
@@ -257,6 +260,7 @@ filetea_transfer_on_read (GObject      *obj,
         {
           g_print ("Error sending response to source: %s\n", error->message);
           g_error_free (error);
+          self->priv->status = FILETEA_TRANSFER_STATUS_ERROR;
         }
 
       filetea_transfer_flush_target (self);
@@ -317,15 +321,21 @@ filetea_transfer_on_target_flushed (GObject      *obj,
 
   if (! g_output_stream_flush_finish (G_OUTPUT_STREAM (obj), res, &error))
     {
-      g_debug ("ERROR flushing target: %s", error->message);
-      g_error_free (error);
+      /* if the stream was closed during flush it is not exactly an error,
+         since it can be expected depending on how fast the target closed
+         the connection after receiving all the body content */
+      if (error->code != G_IO_ERROR_CLOSED)
+        {
+          g_printerr ("ERROR flushing target: %s\n", error->message);
+          g_error_free (error);
+        }
     }
+
+  self->priv->status = FILETEA_TRANSFER_STATUS_COMPLETED;
 
   g_signal_handlers_disconnect_by_func (self->priv->target_conn,
                                         filetea_transfer_on_target_can_write,
                                         self);
-
-  self->priv->status = FILETEA_TRANSFER_STATUS_COMPLETED;
 
   filetea_transfer_complete (self);
 
@@ -363,16 +373,25 @@ filetea_transfer_complete (FileteaTransfer *self)
                                             source_connection_on_close,
                                             self);
 
-      if (! g_io_stream_is_closed (G_IO_STREAM (self->priv->source_conn)))
-        g_io_stream_close (G_IO_STREAM (self->priv->source_conn), NULL, NULL);
+      if (self->priv->status != FILETEA_TRANSFER_STATUS_COMPLETED &&
+          ! g_io_stream_is_closed (G_IO_STREAM (self->priv->source_conn)))
+        {
+          g_io_stream_close (G_IO_STREAM (self->priv->source_conn), NULL, NULL);
+        }
     }
 
-  if (! g_io_stream_is_closed (G_IO_STREAM (self->priv->target_conn)))
-    g_io_stream_close (G_IO_STREAM (self->priv->target_conn), NULL, NULL);
+  if (self->priv->status != FILETEA_TRANSFER_STATUS_COMPLETED &&
+      ! g_io_stream_is_closed (G_IO_STREAM (self->priv->target_conn)))
+    {
+      g_io_stream_close (G_IO_STREAM (self->priv->target_conn), NULL, NULL);
+    }
 
-  g_simple_async_result_complete_in_idle (self->priv->result);
-  g_object_unref (self->priv->result);
-  self->priv->result = NULL;
+  if (self->priv->result != NULL)
+    {
+      g_simple_async_result_complete_in_idle (self->priv->result);
+      g_object_unref (self->priv->result);
+      self->priv->result = NULL;
+    }
 }
 
 static gboolean
