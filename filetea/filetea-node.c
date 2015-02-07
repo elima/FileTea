@@ -131,10 +131,13 @@ filetea_node_init (FileteaNode *self)
 
   /* JSON-RPC */
   priv->rpc = evd_jsonrpc_new ();
-  evd_jsonrpc_set_method_call_callback (priv->rpc,
-                                        rpc_on_method_called,
-                                        self);
-  evd_jsonrpc_use_transport (priv->rpc, EVD_TRANSPORT (priv->transport));
+  evd_jsonrpc_set_callbacks (priv->rpc,
+                             rpc_on_method_called,
+                             NULL,
+                             self,
+                             NULL);
+  evd_ipc_mechanism_use_transport (EVD_IPC_MECHANISM (priv->rpc),
+                                   EVD_TRANSPORT (priv->transport));
 
   /* web dir */
   priv->webdir = evd_web_dir_new ();
