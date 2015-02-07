@@ -8,6 +8,7 @@ html_sources_common =				\
 	common/contentManager.js		\
 	common/require.js			\
 	common/utils.js				\
+	common/main.js                          \
 	common/privacy-policy.html		\
 	common/bitcoin.png			\
 	common/delete.png			\

@@ -3,7 +3,7 @@
  *
  * FileTea, low-friction file sharing <http://filetea.net>
  *
- * Copyright (C) 2011, Igalia S.L.
+ * Copyright (C) 2011-2015, Igalia S.L.
  *
  * Authors:
  *   Eduardo Lima Mitev <elima@igalia.com>
@@ -20,164 +20,171 @@
  * for more details.
  */
 
-// FragidNavigator
-var FragidNavigator = new Evd.Constructor ();
-FragidNavigator.prototype = new Evd.Object ();
+define ([
+    "/transport/evdWebTransport.js"
+], function (Evd) {
 
-Evd.Object.extend (FragidNavigator.prototype, {
+    // FragidNavigator
+    var FragidNavigator = new Evd.Constructor ();
+    FragidNavigator.prototype = new Evd.Object ();
 
-    _init: function (args) {
-        this._interval = 50;
+    Evd.Object.extend (FragidNavigator.prototype, {
 
-        this._currentFragid = null;
+        _init: function (args) {
+            this._interval = 50;
 
-        var self = this;
-        this._checkFunc = function () {
+            this._currentFragid = null;
+
+            var self = this;
+            this._checkFunc = function () {
                 self.check ();
             };
 
-        this._intervalId = null;
+            this._intervalId = null;
 
-        if (args.autoStart !== false)
-            this.start ();
-    },
+            if (args.autoStart !== false)
+                this.start ();
+        },
 
-    _getFragmentId: function () {
-        var hash = window.location.hash;
-        if (hash)
-            hash = hash.substr (1);
-        return hash;
-    },
+        _getFragmentId: function () {
+            var hash = window.location.hash;
+            if (hash)
+                hash = hash.substr (1);
+            return hash;
+        },
 
-    check: function () {
-        var newFragid = this._getFragmentId ();
-        if (newFragid != this._currentFragid) {
-            var oldFragid = this._currentFragid;
-            this._currentFragid = newFragid;
-            this._fireEvent ("change", [oldFragid, newFragid]);
+        check: function () {
+            var newFragid = this._getFragmentId ();
+            if (newFragid != this._currentFragid) {
+                var oldFragid = this._currentFragid;
+                this._currentFragid = newFragid;
+                this._fireEvent ("change", [oldFragid, newFragid]);
+            }
+        },
+
+        start: function () {
+            if (! this._intervalId) {
+                this._intervalId = window.setInterval (this._checkFunc, this._interval);
+                this.check ();
+            }
+        },
+
+        stop: function () {
+            if (this._intervalId) {
+                window.removeInterval (this._intervalId);
+                this._currentFragid = null;
+            }
+        },
+
+        navigateTo: function (fragId) {
+            window.location.hash = fragId;
+        },
+
+        getFragid: function () {
+            return this._currentFragid;
         }
-    },
+    });
 
-    start: function () {
-        if (! this._intervalId) {
-            this._intervalId = window.setInterval (this._checkFunc, this._interval);
-            this.check ();
-        }
-    },
+    // ContentManager
+    var ContentManager = new Evd.Constructor ();
+    ContentManager.prototype = new Evd.Object ();
 
-    stop: function () {
-        if (this._intervalId) {
-            window.removeInterval (this._intervalId);
-            this._currentFragid = null;
-        }
-    },
+    Evd.Object.extend (ContentManager.prototype, {
 
-    navigateTo: function (fragId) {
-        window.location.hash = fragId;
-    },
+        Mode: {
+            DYNAMIC:  0,
+            STATIC:   1,
+            VOLATILE: 2
+        },
 
-    getFragid: function () {
-        return this._currentFragid;
-    }
-});
+        _init: function (args) {
+            this._fragidNav = new FragidNavigator({ autoStart: false });
 
-// ContentManager
-var ContentManager = new Evd.Constructor ();
-ContentManager.prototype = new Evd.Object ();
+            var self = this;
+            this._fragidNav.addEventListener ("change",
+                function (oldState, newState) {
+                    if (newState == "")
+                        newState = self._default;
 
-Evd.Object.extend (ContentManager.prototype, {
+                    self.open (newState);
+                });
 
-    Mode: {
-        DYNAMIC:  0,
-        STATIC:   1,
-        VOLATILE: 2
-    },
+            this._contents = {};
 
-    _init: function (args) {
-        this._fragidNav = new FragidNavigator({ autoStart: false });
-
-        var self = this;
-        this._fragidNav.addEventListener ("change",
-            function (oldState, newState) {
-                if (newState == "")
-                    newState = self._default;
-
-                self.open (newState);
+            require (["../common/utils"], function (Utils) {
+                self._utils = Utils;
             });
+        },
 
-        this._contents = {};
+        add: function (id, name, url, content, mode) {
+            var c = {
+                id: id,
+                name: name,
+                url: url,
+                content: content,
+                mode: mode !== undefined ? mode : this.Mode.DYNAMIC
+            };
 
-        require (["../common/utils"], function (Utils) {
-                     self._utils = Utils;
-                 });
-    },
+            this._contents[id] = c;
+        },
 
-    add: function (id, name, url, content, mode) {
-        var c = {
-            id: id,
-            name: name,
-            url: url,
-            content: content,
-            mode: mode !== undefined ? mode : this.Mode.DYNAMIC
-        };
+        setDefault: function (id) {
+            this._default = id;
+        },
 
-        this._contents[id] = c;
-    },
+        open: function (id, callback) {
+            var self = this;
 
-    setDefault: function (id) {
-        this._default = id;
-    },
+            var c = this._contents[id];
+            if (! c) {
+                this._fireEvent ("not-found", [id]);
 
-    open: function (id, callback) {
-        var self = this;
+                return true;
+            }
 
-        var c = this._contents[id];
-        if (! c) {
-            this._fireEvent ("not-found", [id]);
+            if (c.content == null && c.mode != this.Mode.STATIC) {
+                self._fireEvent ("add", [c.id, c.name]);
+                self._fireEvent ("loading", [c.id]);
+
+                jQuery.ajax ({
+                    url: c.url,
+                    success: function (data, statusText) {
+                        c.content = data;
+                        self._fireEvent ("add", [c.id, c.name, c.content]);
+                        self._fireEvent ("show", [c.id, c.name]);
+                        if (callback)
+                            callback (c.content);
+                    }
+                });
+            }
+            else {
+                self._fireEvent ("show", [c.id, c.name, c.content]);
+            }
 
             return true;
-        }
+        },
 
-        if (c.content == null && c.mode != this.Mode.STATIC) {
-            self._fireEvent ("add", [c.id, c.name]);
-            self._fireEvent ("loading", [c.id]);
+        invalidate: function (id) {
+            var c = this._contents[id];
+            if (! c)
+                return this;
 
-            jQuery.ajax ({
-                url: c.url,
-                success: function (data, statusText) {
-                    c.content = data;
-                    self._fireEvent ("add", [c.id, c.name, c.content]);
-                    self._fireEvent ("show", [c.id, c.name]);
-                    if (callback)
-                        callback (c.content);
-                }
-            });
-        }
-        else {
-            self._fireEvent ("show", [c.id, c.name, c.content]);
-        }
+            if (c.mode == this.Mode.DYNAMIC)
+                c.content = null;
+            else if (c.mode == this.Mode.VOLATILE)
+                delete (this._contents[id]);
 
-        return true;
-    },
-
-    invalidate: function (id) {
-        var c = this._contents[id];
-        if (! c)
             return this;
+        },
 
-        if (c.mode == this.Mode.DYNAMIC)
-            c.content = null;
-        else if (c.mode == this.Mode.VOLATILE)
-            delete (this._contents[id]);
+        start: function () {
+            this._fragidNav.start ();
+        },
 
-        return this;
-    },
+        getCurrent: function () {
+            return this._fragidNav.getFragid ();
+        }
+    });
 
-    start: function () {
-        this._fragidNav.start ();
-    },
-
-    getCurrent: function () {
-        return this._fragidNav.getFragid ();
-    }
+    return ContentManager;
 });

@@ -3,7 +3,7 @@
  *
  * FileTea, low-friction file sharing <http://filetea.net>
  *
- * Copyright (C) 2011, Igalia S.L.
+ * Copyright (C) 2011-2015, Igalia S.L.
  *
  * Authors:
  *   Eduardo Lima Mitev <elima@igalia.com>
@@ -20,74 +20,78 @@
  * for more details.
  */
 
-// DownloadView
-var DownloadView = new Evd.Constructor ();
-DownloadView.prototype = new Evd.Object ();
+define ([
+    "/transport/evdWebTransport.js",
+    "../common/fileTea.js"
+], function (Evd, Ft) {
 
-Evd.Object.extend (DownloadView.prototype, {
+    // DownloadView
+    var DownloadView = new Evd.Constructor ();
+    DownloadView.prototype = new Evd.Object ();
 
-    _init: function (args) {
-        this._parentElement = args.parentElement;
+    Evd.Object.extend (DownloadView.prototype, {
 
-        var self = this;
-        require (["../common/utils"],
-            function (Utils) {
-                self._utils = Utils;
-            });
-    },
+        _init: function (args) {
+            this._parentElement = args.parentElement;
 
-    openFile: function (id, callback) {
-        var self = this;
+            var self = this;
+            require (["../common/utils"],
+                     function (Utils) {
+                         self._utils = Utils;
+                     });
+        },
 
-        this._fileId = id;
+        openFile: function (id, callback) {
+            var self = this;
 
-        Ft.queryRemoteFile (id,
-            function (info, error) {
-                if (error) {
-                    jQuery.ajax ({
-                        url: "not-found-view.html",
-                        success: function (data, statusText) {
-                            self._parentElement.innerHTML = data;
+            this._fileId = id;
 
-                            if (callback)
-                                callback (false, new Error ("File not found"));
-                        }
-                    });
-                }
-                else {
-                    jQuery.ajax ({
-                        url: "download-view.html",
-                        success: function (data, statusText) {
-                            self._parentElement.innerHTML = data;
+            Ft.queryRemoteFile (id,
+                function (info, error) {
+                    if (error) {
+                        jQuery.ajax ({
+                            url: "not-found-view.html",
+                            success: function (data, statusText) {
+                                self._parentElement.innerHTML = data;
 
-                            $ ("#" + id + " .download-view-name").html (info.name);
+                                if (callback)
+                                    callback (false, new Error ("File not found"));
+                            }
+                        });
+                    }
+                    else {
+                        jQuery.ajax ({
+                            url: "download-view.html",
+                            success: function (data, statusText) {
+                                self._parentElement.innerHTML = data;
 
-                            if (! info.type)
-                                info.type = "unknown";
+                                $ ("#" + id + " .download-view-name").html (info.name);
 
-                            $ ("#" + id + " .download-view-type").html (info.type);
-                            $ ("#" + id + " .download-view-size").html (self._utils.humanizeFileSize (info.size));
+                                if (! info.type)
+                                    info.type = "unknown";
 
-                            var urlEl = $ ("#" + id + " .download-view-url").get(0);
-                            urlEl.href =  info.url;
-                            urlEl._baseUrl = info.url;
+                                $ ("#" + id + " .download-view-type").html (info.type);
+                                $ ("#" + id + " .download-view-size").html (self._utils.humanizeFileSize (info.size));
 
-                            urlEl.onclick = function () {
-                                var peerId = Ft.getRemotePeerId ();
-                                if (peerId)
-                                    urlEl.href = urlEl._baseUrl + "?" + peerId;
-                                return true;
-                            };
+                                var urlEl = $ ("#" + id + " .download-view-url").get(0);
+                                urlEl.href =  info.url;
+                                urlEl._baseUrl = info.url;
 
-                            if (callback)
-                                callback (true, null);
-                        }
-                    });
-                }
-            });
-    }
-});
+                                urlEl.onclick = function () {
+                                    var peerId = Ft.getRemotePeerId ();
+                                    if (peerId)
+                                        urlEl.href = urlEl._baseUrl + "?" + peerId;
+                                    return true;
+                                };
 
-define (function () {
+                                if (callback)
+                                    callback (true, null);
+                            }
+                        });
+                    }
+                });
+        }
+    });
+
     return DownloadView;
 });
