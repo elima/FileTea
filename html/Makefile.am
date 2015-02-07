@@ -9,6 +9,7 @@ html_sources_common =				\
 	common/require.js			\
 	common/utils.js				\
 	common/main.js                          \
+	common/jquery.js                        \
 	common/privacy-policy.html		\
 	common/bitcoin.png			\
 	common/delete.png			\
