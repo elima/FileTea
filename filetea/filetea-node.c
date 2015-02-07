@@ -124,7 +124,7 @@ filetea_node_init (FileteaNode *self)
   self->priv = priv;
 
   /* web transport */
-  priv->transport = evd_web_transport_server_new (NULL);
+  priv->transport = evd_web_transport_server_new ("/transport/");
 
   /* JSON-RPC */
   priv->rpc = evd_jsonrpc_new ();
