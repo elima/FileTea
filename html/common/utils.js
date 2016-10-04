@@ -3,7 +3,7 @@
  *
  * Useful, general purpose javascript functions.
  *
- * Copyright (C) 2011, Igalia S.L.
+ * Copyright (C) 2011-2016, Igalia S.L.
  *
  * Authors:
  *   Eduardo Lima Mitev <elima@igalia.com>
@@ -20,55 +20,57 @@
  * for more details.
  */
 
-var KB = 1024;
-var MB = KB * 1024;
-var GB = MB * 1024;
+'use strict';
 
-var MIN = 60;
-var HOUR = MIN * 60;
-var DAY = HOUR * 24;
+define ([
+], function () {
+    var KB = 1024;
+    var MB = KB * 1024;
+    var GB = MB * 1024;
 
-function humanizeFileSize (size) {
-    var d;
-    if (size >= GB)
-        d = [size / GB, "GB"];
-    else if (size >= MB)
-        d = [size / MB, "MB"];
-    else if (size > KB)
-        d = [size / KB, "KB"];
-    else
-        return size + " bytes";
+    var MIN = 60;
+    var HOUR = MIN * 60;
+    var DAY = HOUR * 24;
 
-    return Math.round (d[0] * 10) / 10 + " " + d[1];
-}
+    function humanizeFileSize (size) {
+        var d;
+        if (size >= GB)
+            d = [size / GB, "GB"];
+        else if (size >= MB)
+            d = [size / MB, "MB"];
+        else if (size > KB)
+            d = [size / KB, "KB"];
+        else
+            return size + " bytes";
 
-function humanizeTime (seconds) {
-    var st = "";
-
-    if (seconds > DAY) {
-        st += Math.floor (seconds / DAY) + "d ";
-        seconds = seconds % DAY;
+        return Math.round (d[0] * 10) / 10 + " " + d[1];
     }
 
-    if (seconds > HOUR) {
-        st += Math.floor (seconds / HOUR) + "h ";
-        seconds = seconds % HOUR;
+    function humanizeTime (seconds) {
+        var st = "";
+
+        if (seconds > DAY) {
+            st += Math.floor (seconds / DAY) + "d ";
+            seconds = seconds % DAY;
+        }
+
+        if (seconds > HOUR) {
+            st += Math.floor (seconds / HOUR) + "h ";
+            seconds = seconds % HOUR;
+        }
+
+        if (seconds > MIN) {
+            st += Math.floor (seconds / MIN) + "m ";
+            seconds = seconds % MIN;
+        }
+
+        st += Math.ceil (seconds) + "s";
+
+        return st;
     }
 
-    if (seconds > MIN) {
-        st += Math.floor (seconds / MIN) + "m ";
-        seconds = seconds % MIN;
-    }
-
-    st += Math.ceil (seconds) + "s";
-
-    return st;
-}
-
-if (exports == undefined)
-    var exports = {};
-
-exports.humanizeFileSize = humanizeFileSize;
-exports.humanizeTime = humanizeTime;
-
-define (exports);
+    return {
+        humanizeFileSize: humanizeFileSize,
+        humanizeTime: humanizeTime
+    };
+});
