@@ -3,7 +3,7 @@
  *
  * FileTea, low-friction file sharing <http://filetea.net>
  *
- * Copyright (C) 2011-2015, Igalia S.L.
+ * Copyright (C) 2011-2016, Igalia S.L.
  *
  * Authors:
  *   Eduardo Lima Mitev <elima@igalia.com>
@@ -111,7 +111,7 @@ define ([
 
             this._contents = {};
 
-            require (["../common/utils"], function (Utils) {
+            require (["./utils"], function (Utils) {
                 self._utils = Utils;
             });
         },

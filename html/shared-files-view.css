@@ -112,7 +112,7 @@
 
     text-align: right;
     cursor: pointer;
-    background: url("../common/delete.png");
+    background: url("./delete.png");
     background-repeat: no-repeat;
     background-position: 96% 6px;
 }

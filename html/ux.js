@@ -3,7 +3,7 @@
  *
  * FileTea, low-friction file sharing <http://filetea.net>
  *
- * Copyright (C) 2011-2015, Igalia S.L.
+ * Copyright (C) 2011-2016, Igalia S.L.
  *
  * Authors:
  *   Eduardo Lima Mitev <elima@igalia.com>
@@ -22,7 +22,7 @@
 
 define ([
     "/transport/evdWebTransport.js",
-    "../common/fileTea.js"
+    "./fileTea.js"
 ], function (Evd, Ft) {
     // UxManager
     var UxManager = new Evd.Constructor ();
@@ -81,7 +81,7 @@ define ([
             };
 
             // shared-files view
-            require (["../default/sharedFilesView.js"],
+            require (["./sharedFilesView.js"],
                 function (SharedFilesView) {
                     self._sharedFilesView = new SharedFilesView ({
                         parentElement: $ ("#shared-files-list").get(0),
@@ -95,7 +95,7 @@ define ([
                 });
 
             // transfers view
-            require (["../default/transfersView.js"],
+            require (["./transfersView.js"],
                      function (TransfersView) {
                          self._transfersView = new TransfersView ({
                              parentElement: $ ("#transfers").get(0),
@@ -174,7 +174,7 @@ define ([
 
             var self = this;
 
-            require (["../default/downloadView.js"],
+            require (["./downloadView.js"],
                 function (DownloadView) {
                     view = new DownloadView ({
                         parentElement: el

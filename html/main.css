@@ -2,7 +2,7 @@ body {
     margin: 20px;
     color: #4297d7;
     font-family: Sans;
-    background-image: url(../common/gradient-top.png);
+    background-image: url('./gradient-top.png');
     background-repeat: repeat-x;
 }
 
@@ -71,14 +71,14 @@ ul#list {
 #dialog-confirm-close {
     color: #4297d7;
     display: none;
-    background-image: url('../common/warning.png');
+    background-image: url('./warning.png');
     background-repeat: no-repeat;
     padding-left: 170px;
     margin: 10px;
 }
 
 #content-loading {
-    background-image: url('../common/loading_big.gif');
+    background-image: url('./loading_big.gif');
     background-repeat: no-repeat;
     background-position: center center;
     text-align: center;

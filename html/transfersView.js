@@ -3,7 +3,7 @@
  *
  * FileTea, low-friction file sharing <http://filetea.net>
  *
- * Copyright (C) 2011-2015, Igalia S.L.
+ * Copyright (C) 2011-2016, Igalia S.L.
  *
  * Authors:
  *   Eduardo Lima Mitev <elima@igalia.com>
@@ -22,7 +22,7 @@
 
 define ([
     "/transport/evdWebTransport.js",
-    "../common/fileTea.js"
+    "./fileTea.js"
 ], function (Evd, Ft) {
 
     // TransfersView
@@ -51,7 +51,7 @@ define ([
                                                         "No transfers",
                                                         "list-empty-note");
 
-            require (["../common/utils"], function (Utils) {
+            require (["./utils"], function (Utils) {
                 self._utils = Utils;
             });
 
@@ -106,7 +106,7 @@ define ([
 
             item.thumbEl = document.createElement ("img");
             item.thumbEl.className = "transfer-file-thumb";
-            item.thumbEl.src = "../common/mime-type-icon-default.png";
+            item.thumbEl.src = "./mime-type-icon-default.png";
             item.appendChild (item.thumbEl);
 
             item.nameEl = this._newContainer (item, name, "transfer-file-name");

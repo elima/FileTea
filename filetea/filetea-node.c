@@ -730,16 +730,6 @@ setup_new_transfer (FileteaNode       *self,
   return transfer;
 }
 
-static gchar *
-get_static_content_path (FileteaNode    *self,
-                         EvdHttpRequest *request)
-{
-  /* @TODO: detect type of user-agent (mobile vs. desktop), and locale,
-     then redirect to correponding html root. By now, only default. */
-
-  return g_strdup ("/default");
-}
-
 static gboolean
 user_agent_is_browser (const gchar *user_agent)
 {
@@ -874,14 +864,9 @@ handle_special_request (FileteaNode         *self,
               user_agent_is_browser (user_agent))
             {
               gchar *new_path;
-              gchar *static_content_path;
               GError *error = NULL;
 
-              static_content_path = get_static_content_path (self, request);
-
-              new_path = g_strdup_printf ("%s/#%s", static_content_path, id);
-
-              g_free (static_content_path);
+              new_path = g_strdup_printf ("/#%s", id);
 
               if (! evd_http_connection_redirect (conn, new_path, FALSE, &error))
                 {
@@ -960,29 +945,6 @@ request_handler (EvdWebService     *web_service,
     {
       /* @TODO: possibly, a request from a transfer endpoint */
       g_debug ("transfer request");
-    }
-  else if (tokens_len == 2 &&
-           g_strcmp0 (tokens[1], "default") != 0 &&
-           g_strcmp0 (tokens[1], "common") != 0)
-    {
-      gchar *new_path;
-      GError *error = NULL;
-      gchar *static_content_path;
-
-      static_content_path = get_static_content_path (self, request);
-
-      new_path = g_strdup_printf ("%s%s", static_content_path, uri->path);
-
-      g_free (static_content_path);
-
-      /* redirect */
-      if (! evd_http_connection_redirect (conn, new_path, FALSE, &error))
-        {
-          g_debug ("ERROR sending response to source: %s", error->message);
-          g_error_free (error);
-        }
-
-      g_free (new_path);
     }
   else
     {

@@ -25,15 +25,15 @@
 $ (document).ready (function () {
     require ({
     }, [
-        "../common/contentManager.js",
-        "../default/ux.js",
-        "../common/fileTea.js"
+        "./contentManager.js",
+        "../ux.js",
+        "./fileTea.js"
     ], function (ContentManager, UxManager, Ft) {
         var content = new ContentManager ();
 
         content.add ("shared-files",
                      "Share files",
-                     "../default/shared-files-view.html",
+                     "./shared-files-view.html",
                      null,
                      content.Mode.STATIC);
         content.add ("transfers",
@@ -43,7 +43,7 @@ $ (document).ready (function () {
                      content.Mode.STATIC);
         content.add ("privacy-policy",
                      "Privacy policy",
-                     "../common/privacy-policy.html",
+                     "./privacy-policy.html",
                      null,
                      content.Mode.DYNAMIC);
 

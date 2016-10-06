@@ -3,7 +3,7 @@
  *
  * FileTea, low-friction file sharing <http://filetea.net>
  *
- * Copyright (C) 2011-2015, Igalia S.L.
+ * Copyright (C) 2011-2016, Igalia S.L.
  *
  * Authors:
  *   Eduardo Lima Mitev <elima@igalia.com>
@@ -22,7 +22,7 @@
 
 define ([
     "/transport/evdWebTransport.js",
-    "../common/fileTea.js"
+    "./fileTea.js"
 ], function (Evd, Ft) {
     // SharedFilesView
     var SharedFilesView = new Evd.Constructor ();
@@ -63,7 +63,7 @@ define ([
 
             $ ("#share-files-btn").button ();
 
-            require (["../common/utils"], function (Utils) {
+            require (["./utils"], function (Utils) {
                 self._utils = Utils;
             });
 
@@ -112,7 +112,7 @@ define ([
             if (type.indexOf ("image/") == 0 && size < 1024000)
                 this._createThumbnail (file, item.thumbEl);
             else
-                item.thumbEl.src = "../common/mime-type-icon-default.png";
+                item.thumbEl.src = "./mime-type-icon-default.png";
             item.appendChild (item.thumbEl);
 
             item.nameEl = this._newContainer (item, name, "shared-file-name");
@@ -129,7 +129,7 @@ define ([
                 item.urlEl.childNodes.item (0).select ();
             }
             else {
-                item.urlEl.innerHTML = "<img src='../common/loading.gif'>";
+                item.urlEl.innerHTML = "<img src='./loading.gif'>";
             }
 
             item.delEl = this._newContainer (item, "", "shared-file-del-btn");
@@ -187,7 +187,7 @@ define ([
             if (! item)
                 return;
 
-            item.urlEl.innerHTML = "<img src='../common/loading.gif'>";
+            item.urlEl.innerHTML = "<img src='./loading.gif'>";
         },
 
         _setupFileDropZone: function (element) {
