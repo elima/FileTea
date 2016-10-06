@@ -11,11 +11,9 @@ html_sources =				\
 	main.js				\
 	jquery.js			\
 	privacy-policy.html		\
-	bitcoin.png			\
 	delete.png			\
 	download.png			\
 	gradient-top.png		\
-	html5_logo_32.png		\
 	loading.gif			\
 	loading_big.gif			\
 	mime-type-icon-default.png	\
