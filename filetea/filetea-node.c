@@ -26,6 +26,8 @@
 #include "file-source.h"
 #include "file-transfer.h"
 
+#include <string.h>
+
 G_DEFINE_TYPE (FileteaNode, filetea_node, EVD_TYPE_WEB_SERVICE)
 
 #define FILETEA_NODE_GET_PRIVATE(obj) (G_TYPE_INSTANCE_GET_PRIVATE ((obj), \
