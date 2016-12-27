@@ -76,6 +76,7 @@ define ([
                                 var urlEl = $ ("#" + id + " .download-view-url").get(0);
                                 urlEl.href =  info.url;
                                 urlEl._baseUrl = info.url;
+                                urlEl.target = "_blank";
 
                                 urlEl.onclick = function () {
                                     var peerId = Ft.getRemotePeerId ();
