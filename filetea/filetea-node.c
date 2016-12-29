@@ -1277,6 +1277,17 @@ load_config (FileteaNode *self, GKeyFile *config)
                                                     NULL);
   if (self->priv->log_filename != NULL && self->priv->log_filename[0] != '\0')
     setup_web_dir_logging (self);
+
+  /* external base URL */
+  const char *external_base_url = g_key_file_get_string (config,
+                                                         "http",
+                                                         "external-base-url",
+                                                         NULL);
+  if (external_base_url != NULL && external_base_url[0] != '\0')
+    {
+      evd_web_transport_server_set_external_base_url (self->priv->transport,
+                                                      external_base_url);
+    }
 }
 
 /* public methods */
